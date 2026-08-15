@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import math
 import os
@@ -22,6 +23,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 __all__ = [
@@ -391,6 +393,7 @@ class DashScopeEmbedder(Embedder):
         timeout: float = 120.0,
         max_retries: int = 5,
         endpoint: str | None = None,
+        concurrency: int = 8,
     ):
         key = api_key or os.environ.get("DASHSCOPE_API_KEY")
         if not key:
@@ -402,6 +405,7 @@ class DashScopeEmbedder(Embedder):
         self.timeout = timeout
         self.max_retries = max_retries
         self.endpoint = endpoint or self.ENDPOINT
+        self.concurrency = max(1, concurrency)
 
     def _post(self, texts: Sequence[str]) -> dict:
         payload = {
@@ -429,7 +433,16 @@ class DashScopeEmbedder(Embedder):
                     raise RuntimeError(f"DashScope вернул HTTP {exc.code}: {detail}") from exc
                 time.sleep(delay)
                 delay *= 2
-            except (urllib.error.URLError, TimeoutError):
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                ConnectionError,
+                http.client.IncompleteRead,
+                http.client.HTTPException,
+            ):
+                # Ответ на батч из 10 векторов по 1024 измерения — сотни
+                # килобайт JSON, и он регулярно приходит оборванным.
+                # Обрыв обязан быть ретраем, а не потерей части чанков.
                 if attempt == self.max_retries - 1:
                     raise
                 time.sleep(delay)
@@ -437,20 +450,50 @@ class DashScopeEmbedder(Embedder):
         raise RuntimeError("недостижимо")
 
     def _run(self, texts: Sequence[str]) -> EmbedResult:
-        vectors: list[list[float]] = []
+        """Батчи идут параллельно.
+
+        Модель поштучная, порядок чанков внутри батча роли не играет, а API
+        держит несколько запросов сразу — поэтому последовательный цикл здесь
+        просто теряет время: замер дал 1.16 чанка/с против 15.3 часа на срез.
+        Результаты собираются по индексу батча, так что порядок векторов
+        совпадает с порядком входа независимо от порядка ответов.
+        """
+        batches = [
+            texts[start : start + self.MAX_BATCH]
+            for start in range(0, len(texts), self.MAX_BATCH)
+        ]
+        results: list[list[list[float]]] = [[] for _ in batches]
         tokens = 0
         started = time.time()
-        for start in range(0, len(texts), self.MAX_BATCH):
-            batch = texts[start : start + self.MAX_BATCH]
-            body = self._post(batch)
-            tokens += (body.get("usage") or {}).get("total_tokens", 0)
-            for item in sorted(body["data"], key=lambda d: d["index"]):
-                vectors.append(item["embedding"])
+
+        if self.concurrency <= 1 or len(batches) == 1:
+            for index, batch in enumerate(batches):
+                body = self._post(batch)
+                tokens += (body.get("usage") or {}).get("total_tokens", 0)
+                results[index] = [
+                    item["embedding"] for item in sorted(body["data"], key=lambda d: d["index"])
+                ]
+        else:
+            with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+                futures = {
+                    pool.submit(self._post, batch): index
+                    for index, batch in enumerate(batches)
+                }
+                for future in as_completed(futures):
+                    index = futures[future]
+                    body = future.result()
+                    tokens += (body.get("usage") or {}).get("total_tokens", 0)
+                    results[index] = [
+                        item["embedding"]
+                        for item in sorted(body["data"], key=lambda d: d["index"])
+                    ]
+
+        vectors = [vector for batch in results for vector in batch]
         return EmbedResult(
             vectors=vectors,
             prompt_tokens=tokens,
             seconds=time.time() - started,
-            meta={"model": self.model, "dim": self.dim},
+            meta={"model": self.model, "dim": self.dim, "concurrency": self.concurrency},
         )
 
     def embed_documents(self, documents: Sequence[Sequence[str]]) -> EmbedResult:
