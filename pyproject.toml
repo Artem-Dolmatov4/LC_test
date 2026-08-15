@@ -1,0 +1,42 @@
+[project]
+name = "mlaw-rag"
+version = "0.1.0"
+description = "RAG-пайплайн поверх корпуса правовых актов города Москвы (MLAW)"
+requires-python = ">=3.12"
+
+# Шаг 0 работает на голой стандартной библиотеке: struct, tarfile, subprocess.
+# Внешние зависимости появляются начиная с шага 0.5 и вынесены в extras,
+# чтобы каркас и тесты инвариантов поднимались без тяжёлого стека.
+dependencies = []
+
+[project.optional-dependencies]
+# Ускоренная распаковка .tar.zst из Python; при отсутствии stream.py
+# прозрачно откатывается на бинарь `zstd` через subprocess.
+zstd = ["zstandard>=0.22"]
+
+# Шаги 4-6: индекс, лексическая нога, клиенты моделей.
+pipeline = [
+    "qdrant-client>=1.9",
+    "bm25s>=0.2",
+    "PyStemmer>=2.2",
+    "httpx>=0.27",
+    "voyageai>=0.3",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+]
+
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "slow: требует настоящего архива MLAW; пропускается, если его нет на месте",
+]

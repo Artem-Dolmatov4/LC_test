@@ -1,0 +1,26 @@
+# Исходные данные задания — не в git (1.1 ГБ архива, 16.9 ГБ распакованного).
+# Пути якорятся на корень: под macOS git по умолчанию регистронезависим,
+# и неякорный шаблон `MLAW/` вычёркивал заодно пакет `src/mlaw/`.
+/MLAW_dataset.tar.zst
+/MLAW_TASK.html
+/MLAW/
+
+# Производные артефакты пайплайна
+data/
+reports/*
+!reports/.gitkeep
+qdrant_storage/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Секреты
+.env
+
+# macOS
+.DS_Store
