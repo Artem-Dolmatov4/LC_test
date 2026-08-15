@@ -183,6 +183,65 @@ def run(archive: str, model: str, host: str | None, count: int, out: Path) -> di
     return report
 
 
+def run_voyage(archive: str, count: int, out: Path) -> dict:
+    """Гейт API-ноги.
+
+    Главная проверка — что контекстуализация не декларативная: один и тот же
+    чанк, посланный в одиночку и в составе документа, обязан получить **разные**
+    векторы. Если они совпадут, вся ось эксперимента «нативный контекст против
+    хлебной крошки» лишена смысла, и это надо знать до, а не после индексации.
+    """
+    from mlaw.embed import VoyageEmbedder
+
+    print(f"Voyage: набираю {count} фрагментов…")
+    chunks = sample_chunks(archive, count)
+    embedder = VoyageEmbedder(dim=1024)
+
+    # Документ целиком — чанки идут одной группой, как и требует модель.
+    started = time.time()
+    as_document = embedder.embed_documents([chunks])
+    elapsed = time.time() - started
+
+    # Тот же средний чанк, но в одиночку — контекста нет.
+    middle = len(chunks) // 2
+    alone = embedder.embed_documents([[chunks[middle]]])
+
+    contextual = _unit(as_document.vectors[middle])
+    isolated = _unit(alone.vectors[0])
+    similarity = _cosine(contextual, isolated)
+
+    # Контроль: два разных чанка должны отличаться сильнее, чем один и тот же
+    # чанк в двух режимах. Иначе «разница» — просто шум.
+    other = _unit(as_document.vectors[(middle + 1) % len(chunks)])
+    baseline = _cosine(contextual, other)
+
+    report = {
+        "model": embedder.model,
+        "chunks": len(chunks),
+        "dim": as_document.dim,
+        "throughput": {
+            "chunks_per_sec": round(len(chunks) / elapsed, 1),
+            "seconds": round(elapsed, 2),
+        },
+        "usage": {
+            "tokens_this_run": as_document.prompt_tokens + alone.prompt_tokens,
+            "note": "200M токенов на аккаунт выдаются один раз и не возобновляются",
+        },
+        "contextualization": {
+            "same_chunk_in_document_vs_alone": round(similarity, 4),
+            "different_chunks_baseline": round(baseline, 4),
+            "verdict": (
+                "контекст влияет" if similarity < 0.999 else "ВЛИЯНИЯ НЕ ВИДНО"
+            ),
+        },
+        "windowed_documents": embedder.windowed_documents,
+    }
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return report
+
+
 def _unit(vec: list[float]) -> list[float]:
     norm = math.sqrt(sum(x * x for x in vec))
     return [x / norm for x in vec] if norm else vec
@@ -203,7 +262,23 @@ def main() -> None:
     parser.add_argument("--host", default=None)
     parser.add_argument("--chunks", type=int, default=8)
     parser.add_argument("--out", type=Path, default=Path("reports/gate.json"))
+    parser.add_argument(
+        "--voyage", action="store_true", help="гейт API-ноги вместо локальной"
+    )
     args = parser.parse_args()
+
+    if args.voyage:
+        report = run_voyage(args.archive, args.chunks, Path("reports/gate_voyage.json"))
+        c = report["contextualization"]
+        print(f"\n{'=' * 58}")
+        print(f"  {report['model']} · dim {report['dim']}")
+        print(f"  {report['throughput']['chunks_per_sec']} чанк/с")
+        print(f"  токенов истрачено: {report['usage']['tokens_this_run']}")
+        print(f"  тот же чанк в документе и в одиночку: cos {c['same_chunk_in_document_vs_alone']}")
+        print(f"  контроль, разные чанки:               cos {c['different_chunks_baseline']}")
+        print(f"  вердикт: {c['verdict']}")
+        print(f"{'=' * 58}\nЗаписано в reports/gate_voyage.json")
+        return
 
     report = run(args.archive, args.model, args.host, args.chunks, args.out)
 
