@@ -187,14 +187,30 @@ class OllamaEmbedder(Embedder):
 # Voyage — контекстуализированные эмбеддинги
 # --------------------------------------------------------------------------- #
 
-# Лимиты запроса, подтверждённые документацией и smoke-тестом.
+# Лимиты. Их два разных, и документация их путает, а API — нет:
+#   * 32 000 токенов — контекстное окно ОДНОГО документа. Документ длиннее
+#     не контекстуализируется целиком, его приходится резать на окна.
+#   * 120 000 токенов — потолок на весь запрос, сколько бы документов в нём
+#     ни было.
+# Проверено ответом API: «The example at index 0 in your batch has too many
+# tokens and does not fit into the model's context window of 32000 tokens».
+VOYAGE_MAX_TOKENS_PER_DOCUMENT = 32_000
 VOYAGE_MAX_TOKENS_PER_REQUEST = 120_000
 VOYAGE_MAX_INPUTS = 1_000
 VOYAGE_MAX_CHUNKS = 16_000
 
-# Оценка длины в токенах по знакам. Замер на русском правовом тексте дал
-# 3.87 знака на токен; берём 3.0 с запасом, чтобы оценка не занижала.
-CHARS_PER_TOKEN_CONSERVATIVE = 3.0
+# Оценка длины в токенах по знакам, нужна для нарезки на окна до обращения
+# к API. Замер на настоящих чанках корпуса токенизатором Voyage: 2.85–2.93
+# знака на токен (~600 токенов на чанк в 1 862 знака).
+#
+# Значение берётся НИЖЕ замеренного, а не выше: оценка должна ЗАВЫШАТЬ число
+# токенов, иначе окно окажется больше контекста модели и запрос отвергнут.
+# Первая версия стояла на 3.0 «с запасом» — запас был в обратную сторону,
+# и окна не влезали.
+#
+# Токенизатор Qwen на том же тексте даёт 3.87 знака на токен — оценки моделей
+# не взаимозаменяемы.
+CHARS_PER_TOKEN_CONSERVATIVE = 2.2
 
 
 class VoyageEmbedder(Embedder):
@@ -275,13 +291,19 @@ class VoyageEmbedder(Embedder):
         return max(1, int(len(text) / CHARS_PER_TOKEN_CONSERVATIVE))
 
     def _window(self, chunks: Sequence[str]) -> list[list[str]]:
-        """Режет документ на окна, укладывающиеся в лимит токенов запроса."""
+        """Режет документ на окна по контекстному лимиту модели.
+
+        Окно — 32 000 токенов, то есть примерно 53 чанка по 2 000 знаков.
+        Документы длиннее контекстуализируются кусками, и чанки из разных
+        окон видят разный контекст. Для среза это не редкость: у нас есть
+        редакции по 12.5 млн знаков, то есть больше сотни окон на документ.
+        """
         windows: list[list[str]] = []
         current: list[str] = []
         budget = 0
         for chunk in chunks:
             cost = self._estimate_tokens(chunk)
-            if current and budget + cost > VOYAGE_MAX_TOKENS_PER_REQUEST:
+            if current and budget + cost > VOYAGE_MAX_TOKENS_PER_DOCUMENT:
                 windows.append(current)
                 current, budget = [], 0
             current.append(chunk)
@@ -315,6 +337,65 @@ class VoyageEmbedder(Embedder):
             batches.append(current)
         return batches
 
+    def _embed_examples(
+        self, examples: list[list[str]], input_type: str
+    ) -> tuple[list[list[list[float]]], int]:
+        """Считает батч, сам дробя примеры, не влезшие в контекст модели.
+
+        Оценка токенов по знакам работает для прозы, но ломается на таблицах
+        и перечнях: там знаков на токен вдвое меньше, чем в тексте статьи,
+        и единый коэффициент их не описывает. Вместо подбора коэффициента
+        под худший случай — реакция на факт: API сказал «не влезло», значит
+        делим пополам и повторяем.
+
+        Цена дробления — более узкий контекст у затронутых чанков; счётчик
+        `windowed_documents` это фиксирует, чтобы попало в отчёт.
+        """
+        if not examples:
+            return [], 0
+        payload = {
+            "inputs": examples,
+            "model": self.model,
+            "input_type": input_type,
+            "output_dimension": self.dim,
+        }
+        try:
+            body = self._post(payload)
+        except RuntimeError as exc:
+            message = str(exc)
+
+            # Батч тяжелее 120 000 токенов — делим сам батч, примеры целы.
+            if "TOO_MANY_TOKENS_IN_BATCH" in message and len(examples) > 1:
+                middle = len(examples) // 2
+                left, left_tokens = self._embed_examples(examples[:middle], input_type)
+                right, right_tokens = self._embed_examples(examples[middle:], input_type)
+                return left + right, left_tokens + right_tokens
+
+            # Отдельный пример не влез в контекстное окно — дробим примеры.
+            if "context window" in message and any(len(e) > 1 for e in examples):
+                halves: list[list[str]] = []
+                for example in examples:
+                    if len(example) > 1:
+                        middle = len(example) // 2
+                        halves.append(example[:middle])
+                        halves.append(example[middle:])
+                        self.windowed_documents += 1
+                    else:
+                        halves.append(example)
+                return self._embed_examples(halves, input_type)
+
+            raise
+
+        tokens = (body.get("usage") or {}).get("total_tokens", 0)
+        out = [
+            [
+                chunk["embedding"]
+                for chunk in sorted(document["data"], key=lambda c: c["index"])
+            ]
+            for document in sorted(body["data"], key=lambda d: d["index"])
+        ]
+        return out, tokens
+
     def _run(self, documents: Sequence[Sequence[str]], input_type: str) -> EmbedResult:
         # Документы, не влезающие в один запрос, распадаются на окна. Окно
         # становится самостоятельным «документом» с точки зрения API — и это
@@ -330,17 +411,10 @@ class VoyageEmbedder(Embedder):
         tokens = 0
         started = time.time()
         for batch in self._batch(expanded):
-            payload = {
-                "inputs": batch,
-                "model": self.model,
-                "input_type": input_type,
-                "output_dimension": self.dim,
-            }
-            body = self._post(payload)
-            tokens += (body.get("usage") or {}).get("total_tokens", 0)
-            for document_out in sorted(body["data"], key=lambda d: d["index"]):
-                for chunk_out in sorted(document_out["data"], key=lambda c: c["index"]):
-                    vectors.append(chunk_out["embedding"])
+            groups, used = self._embed_examples(batch, input_type)
+            tokens += used
+            for group in groups:
+                vectors.extend(group)
 
         return EmbedResult(
             vectors=vectors,
