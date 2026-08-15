@@ -30,6 +30,7 @@ __all__ = [
     "OllamaEmbedder",
     "OllamaOverflow",
     "VoyageEmbedder",
+    "DashScopeEmbedder",
     "DEFAULT_QUERY_TASK",
 ]
 
@@ -358,3 +359,102 @@ class VoyageEmbedder(Embedder):
     def embed_queries(self, queries: Sequence[str]) -> EmbedResult:
         """Запрос — документ из одного чанка; префикс инструкции не нужен."""
         return self._run([[q] for q in queries], "query")
+
+
+# --------------------------------------------------------------------------- #
+# DashScope (Alibaba) — Qwen3-семейство через API
+# --------------------------------------------------------------------------- #
+
+
+class DashScopeEmbedder(Embedder):
+    """`text-embedding-v4` — поштучный эмбеддер семейства Qwen3.
+
+    Нужен как практичная замена локальному `qwen3-embedding:8b`: та же семья
+    моделей, но полная точность вместо Q4_K_M и скорость API вместо 0.252
+    чанка в секунду. Ценой того, что нога перестаёт быть self-hosted —
+    и это надо назвать в отчёте прямо, а не умолчать.
+
+    Лимит батча — 10 текстов на запрос (ограничение API).
+    """
+
+    ENDPOINT = (
+        "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/embeddings"
+    )
+    MAX_BATCH = 10
+
+    def __init__(
+        self,
+        model: str = "text-embedding-v4",
+        *,
+        api_key: str | None = None,
+        dim: int = 1024,
+        timeout: float = 120.0,
+        max_retries: int = 5,
+        endpoint: str | None = None,
+    ):
+        key = api_key or os.environ.get("DASHSCOPE_API_KEY")
+        if not key:
+            raise RuntimeError("нет DASHSCOPE_API_KEY — ни в аргументе, ни в окружении")
+        self._key = key
+        self.model = model
+        self.name = f"dashscope/{model}"
+        self.dim = dim
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.endpoint = endpoint or self.ENDPOINT
+
+    def _post(self, texts: Sequence[str]) -> dict:
+        payload = {
+            "model": self.model,
+            "input": list(texts),
+            "dimensions": self.dim,
+            "encoding_format": "float",
+        }
+        request = urllib.request.Request(
+            self.endpoint,
+            data=json.dumps(payload).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._key}",
+            },
+        )
+        delay = 2.0
+        for attempt in range(self.max_retries):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    return json.loads(response.read())
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode(errors="replace")[:300]
+                if exc.code not in (429, 500, 502, 503, 504) or attempt == self.max_retries - 1:
+                    raise RuntimeError(f"DashScope вернул HTTP {exc.code}: {detail}") from exc
+                time.sleep(delay)
+                delay *= 2
+            except (urllib.error.URLError, TimeoutError):
+                if attempt == self.max_retries - 1:
+                    raise
+                time.sleep(delay)
+                delay *= 2
+        raise RuntimeError("недостижимо")
+
+    def _run(self, texts: Sequence[str]) -> EmbedResult:
+        vectors: list[list[float]] = []
+        tokens = 0
+        started = time.time()
+        for start in range(0, len(texts), self.MAX_BATCH):
+            batch = texts[start : start + self.MAX_BATCH]
+            body = self._post(batch)
+            tokens += (body.get("usage") or {}).get("total_tokens", 0)
+            for item in sorted(body["data"], key=lambda d: d["index"]):
+                vectors.append(item["embedding"])
+        return EmbedResult(
+            vectors=vectors,
+            prompt_tokens=tokens,
+            seconds=time.time() - started,
+            meta={"model": self.model, "dim": self.dim},
+        )
+
+    def embed_documents(self, documents: Sequence[Sequence[str]]) -> EmbedResult:
+        return self._run([chunk for document in documents for chunk in document])
+
+    def embed_queries(self, queries: Sequence[str]) -> EmbedResult:
+        return self._run(list(queries))
