@@ -300,19 +300,27 @@ p90 = 5 953, p95 = 9 909, p99 = 32 682, **max 15 699 600**.
 
 ## Состояние и окружение
 
-**Готово — шаг 0 (каркас), шаг 0.5 (гейт) и шаг 1 (инвентаризация).**
+**Готово — все семь шагов. Пайплайн проходится одной командой.**
 
 | Модуль | Что делает |
 |---|---|
-| `src/mlaw/oix.py` | чтение и **запись** сайдкара, `OixIndex` (доступ по `doc_id`), `verify_oix` |
-| `src/mlaw/stream.py` | `ArchiveCorpus` (читает прямо из `.tar.zst`) и `DirectoryCorpus` — общий интерфейс |
-| `src/mlaw/embed.py` | `OllamaEmbedder`: явный `num_ctx`, `truncate=False`, MRL-усечение, префикс только на запросах |
-| `src/mlaw/gate.py` | шаг 0.5 — замер пропускной способности → `reports/gate.json`, `gate_voyage.json` |
-| `src/mlaw/inventory.py` | шаг 1 — сплошной проход по банку → `reports/inventory.json` |
-| `tests/` | 61 тест, включая таблицу кейсов PIT и сверку с настоящим шардом 0000 |
+| `src/mlaw/oix.py` | чтение и **запись** сайдкара, `OixIndex`, `verify_oix` |
+| `src/mlaw/stream.py` | `ArchiveCorpus` (читает прямо из `.tar.zst`) и `DirectoryCorpus` |
+| `src/mlaw/embed.py` | `OllamaEmbedder`, `VoyageEmbedder` (контекстные окна, адаптивное дробление), `DashScopeEmbedder` |
+| `src/mlaw/gate.py` | шаг 0.5 — замеры пропускной способности |
+| `src/mlaw/inventory.py` | шаг 1 — сплошной проход по банку за 40 с |
+| `src/mlaw/slice_build.py` | шаг 2 — срез по актам с полными цепочками |
+| `src/mlaw/chunk.py` | шаг 3 — трёхуровневая нарезка |
+| `src/mlaw/index.py` | шаг 4 — кэш векторов, Qdrant, фильтры по дате |
+| `src/mlaw/lexical.py` | шаг 4 — BM25 со стеммингом и реквизитами |
+| `src/mlaw/basket.py` | шаг 5 — корзина 128 запросов четырёх типов |
+| `src/mlaw/evaluate.py` | шаг 5 — метрики на трёх уровнях + контроли |
+| `src/mlaw/search.py` | шаг 6 — конвейер и абляция стадий |
+| `src/mlaw/citations.py` | шаг 6 — резолв и проверка цитат |
+| `src/mlaw/answer.py` | шаг 6 — ответ с проверяемыми цитатами |
+| `tests/` | 128 тестов |
 
-Инвентаризация проходит банк за **40 с** (6 650 записей/с). Ключ Voyage лежит
-в `.env` (файл в `.gitignore`).
+Итоговый отчёт — `reports/REPORT.md`.
 
 Окружение: venv на Python 3.14.3, pytest 9.1.1, `zstandard` 0.25.0. Тяжёлый стек
 (`qdrant-client`, `bm25s`, клиенты моделей) вынесен в extras `pipeline` — каркас и
