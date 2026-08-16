@@ -260,16 +260,24 @@ def main() -> None:
                 "СБОЙ" if answer.error
                 else "ОТКАЗ" if answer.refused
                 else "ok" if answer.citations_valid
-                else "ССЫЛКИ БИТЫЕ"
+                else "ЦИТАТЫ НЕ СХОДЯТСЯ"
             )
-            print(f"  [{mark:>12}] {query['query_id']:<22} "
-                  f"ссылок {answer.verification.get('citations', 0)}, "
-                  f"валидных {answer.verification.get('valid', 0)}")
+            v = answer.verification
+            # Считаем по УНИКАЛЬНЫМ ссылкам: одна и та же ссылка, повторённая
+            # трижды в тексте ответа, — это одна проверка, а не три.
+            print(f"  [{mark:>18}] {query['query_id']:<22} "
+                  f"ссылок {v.get('unique_citations', 0)}, "
+                  f"резолвятся {v.get('resolvable', 0)}, "
+                  f"дословны {v.get('quote_verbatim', 0)}")
 
     errors = [r for r in rows if r.get("error")]
     answered = [r for r in rows if not r["refused"] and not r.get("error")]
-    total_citations = sum(r["verification"].get("citations", 0) for r in answered)
-    valid_citations = sum(r["verification"].get("valid", 0) for r in answered)
+    total_citations = sum(r["verification"].get("unique_citations", 0) for r in answered)
+    resolvable = sum(r["verification"].get("resolvable", 0) for r in answered)
+    valid_citations = sum(r["verification"].get("quote_verbatim", 0) for r in answered)
+    no_citations = sum(
+        1 for r in answered if r["verification"].get("unique_citations", 0) == 0
+    )
     control = next((r for r in rows if r["query_id"] == "control-refusal"), None)
 
     summary = {
@@ -277,10 +285,14 @@ def main() -> None:
         "answered": len(answered),
         "refused": sum(1 for r in rows if r["refused"]),
         "errors": len(errors),
-        "citations_total": total_citations,
-        "citations_valid": valid_citations,
-        "citations_valid_share": round(valid_citations / total_citations, 4)
+        "citations_unique": total_citations,
+        "citations_resolvable": resolvable,
+        "citations_resolvable_share": round(resolvable / total_citations, 4)
         if total_citations else None,
+        "citations_verbatim": valid_citations,
+        "citations_verbatim_share": round(valid_citations / total_citations, 4)
+        if total_citations else None,
+        "answers_without_citations": no_citations,
         "answers_with_all_citations_valid": sum(
             1 for r in answered
             if r["verification"].get("valid_share") == 1.0
@@ -293,8 +305,10 @@ def main() -> None:
     print(f"\n{'=' * 66}")
     print(f"  Ответов {summary['answered']}, отказов {summary['refused']}, "
           f"сбоев разбора {summary['errors']}")
-    print(f"  Ссылок {total_citations}, из них разрешились {valid_citations} "
-          f"({summary['citations_valid_share']})")
+    print(f"  Уникальных ссылок {total_citations}: "
+          f"резолвятся {resolvable} ({summary['citations_resolvable_share']}), "
+          f"дословны {valid_citations} ({summary['citations_verbatim_share']})")
+    print(f"  Ответов без единой ссылки: {no_citations}")
     print(f"  Ответов, где ВСЕ ссылки валидны: "
           f"{summary['answers_with_all_citations_valid']}/{len(answered)}")
     print(f"  Контроль отказа сработал: {summary['control_refusal_worked']}")
