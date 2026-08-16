@@ -174,6 +174,31 @@ def make_embedder(name: str, dim: int) -> Embedder:
     raise ValueError(f"неизвестная модель: {name}")
 
 
+def make_windows(
+    groups: list[list[ChunkRow]], window_chunks: int
+) -> list[list[ChunkRow]]:
+    """Режет документы на окна фиксированного размера ДО обращения к модели.
+
+    Две причины, и обе выяснились на живом прогоне.
+
+    Во-первых, память. Редакция самого длинного акта среза — 6 500 чанков.
+    Ответ модели на неё это ~6.7 млн чисел, которые Python держит списками
+    объектов: сотни мегабайт на один документ. Прогон дошёл до этого акта
+    и был убит системой без единой строчки трейсбека.
+
+    Во-вторых, контекст модели всё равно 32 000 токенов, то есть около 50
+    чанков. Документ в 6 500 чанков не контекстуализируется целиком ни при
+    каком раскладе — он неизбежно распадается на окна. Раз так, лучше резать
+    его самим, предсказуемо и с записью в кэш после каждого окна, чем ловить
+    дробление внутри клиента и терять всё при обрыве.
+    """
+    windows: list[list[ChunkRow]] = []
+    for group in groups:
+        for start in range(0, len(group), window_chunks):
+            windows.append(group[start : start + window_chunks])
+    return windows
+
+
 def run_embedding(
     rows: list[ChunkRow],
     embedder: Embedder,
@@ -181,24 +206,26 @@ def run_embedding(
     *,
     with_breadcrumb: bool,
     docs_per_request: int,
+    window_chunks: int = 40,
 ) -> dict:
-    groups = [g for g in group_by_document(rows) if any(r.chunk_id not in cache for r in g)]
-    todo = sum(1 for g in groups for r in g if r.chunk_id not in cache)
-    print(f"  к расчёту: {todo} чанков в {len(groups)} документах "
-          f"(в кэше уже {len(cache)})")
+    groups = group_by_document(rows)
+    windows = [w for w in make_windows(groups, window_chunks) if any(r.chunk_id not in cache for r in w)]
+    todo = sum(1 for w in windows for r in w if r.chunk_id not in cache)
+    print(f"  к расчёту: {todo} чанков · {len(windows)} окон по {window_chunks} "
+          f"из {len(groups)} документов (в кэше уже {len(cache)})", flush=True)
 
     tokens = 0
     done = 0
     started = time.time()
-    for start in range(0, len(groups), docs_per_request):
-        batch = groups[start : start + docs_per_request]
-        # Документ отправляется целиком, даже если часть его чанков уже в кэше:
+    for start in range(0, len(windows), docs_per_request):
+        batch = windows[start : start + docs_per_request]
+        # Окно отправляется целиком, даже если часть его чанков уже в кэше:
         # контекст обязан быть тем же, иначе векторы окажутся несравнимыми.
-        payload = [[embed_text(r, with_breadcrumb) for r in g] for g in batch]
+        payload = [[embed_text(r, with_breadcrumb) for r in w] for w in batch]
         result = embedder.embed_documents(payload)
         tokens += result.prompt_tokens
 
-        flat = [r for g in batch for r in g]
+        flat = [r for w in batch for r in w]
         if len(flat) != len(result.vectors):
             raise RuntimeError(
                 f"модель вернула {len(result.vectors)} векторов на {len(flat)} чанков"
@@ -210,18 +237,21 @@ def run_embedding(
         ]
         cache.append(fresh)
         done += len(fresh)
+        del result, payload, flat, fresh
 
         elapsed = time.time() - started
         rate = done / elapsed if elapsed else 0
         remaining = (todo - done) / rate / 60 if rate else 0
         print(f"    {done:>7}/{todo} чанков · {rate:5.2f} чанк/с · "
-              f"осталось ~{remaining:5.1f} мин · токенов {tokens:,}".replace(",", " "))
+              f"осталось ~{remaining:5.1f} мин · токенов {tokens:,}".replace(",", " "),
+              flush=True)
 
     return {
         "chunks_embedded": done,
         "tokens": tokens,
         "seconds": round(time.time() - started, 1),
         "chunks_per_sec": round(done / max(1e-9, time.time() - started), 3),
+        "window_chunks": window_chunks,
     }
 
 
@@ -313,7 +343,9 @@ def main() -> None:
     parser.add_argument("--dim", type=int, default=1024)
     parser.add_argument("--limit", type=int, default=None, help="сколько чанков взять")
     parser.add_argument("--breadcrumb", action="store_true", help="приписывать путь меток")
-    parser.add_argument("--docs-per-request", type=int, default=8)
+    parser.add_argument("--docs-per-request", type=int, default=4)
+    parser.add_argument("--window-chunks", type=int, default=40,
+                        help="сколько чанков контекстуализируется вместе")
     parser.add_argument("--collection", default=None)
     parser.add_argument("--qdrant", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
     parser.add_argument("--skip-load", action="store_true", help="только эмбеддинги")
@@ -334,6 +366,7 @@ def main() -> None:
         cache,
         with_breadcrumb=args.breadcrumb,
         docs_per_request=args.docs_per_request,
+        window_chunks=args.window_chunks,
     )
     print(f"\nЭмбеддинги: {stats}")
 

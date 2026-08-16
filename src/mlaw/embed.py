@@ -237,6 +237,7 @@ class VoyageEmbedder(Embedder):
         dim: int = 1024,
         timeout: float = 300.0,
         max_retries: int = 5,
+        concurrency: int = 8,
     ):
         key = api_key or os.environ.get("VOYAGE_API_KEY")
         if not key:
@@ -247,6 +248,7 @@ class VoyageEmbedder(Embedder):
         self.dim = dim
         self.timeout = timeout
         self.max_retries = max_retries
+        self.concurrency = max(1, concurrency)
         self.windowed_documents = 0  # сколько документов не влезли в один запрос
 
     # -- низкий уровень ---------------------------------------------------- #
@@ -407,14 +409,33 @@ class VoyageEmbedder(Embedder):
                 self.windowed_documents += 1
             expanded.extend(windows)
 
-        vectors: list[list[float]] = []
+        # Батчи независимы: каждое окно — самостоятельный контекст, и порядок
+        # ответов на векторы не влияет. Последовательная отправка упирается
+        # не в модель, а в задержку сети: замер дал 3.8 чанка/с против 25
+        # при параллельной.
+        batches = self._batch(expanded)
+        results: list[list[list[float]]] = [[] for _ in batches]
         tokens = 0
         started = time.time()
-        for batch in self._batch(expanded):
-            groups, used = self._embed_examples(batch, input_type)
-            tokens += used
-            for group in groups:
-                vectors.extend(group)
+
+        if self.concurrency <= 1 or len(batches) == 1:
+            for position, batch in enumerate(batches):
+                groups, used = self._embed_examples(batch, input_type)
+                tokens += used
+                results[position] = [v for group in groups for v in group]
+        else:
+            with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+                futures = {
+                    pool.submit(self._embed_examples, batch, input_type): position
+                    for position, batch in enumerate(batches)
+                }
+                for future in as_completed(futures):
+                    position = futures[future]
+                    groups, used = future.result()
+                    tokens += used
+                    results[position] = [v for group in groups for v in group]
+
+        vectors: list[list[float]] = [v for batch in results for v in batch]
 
         return EmbedResult(
             vectors=vectors,
