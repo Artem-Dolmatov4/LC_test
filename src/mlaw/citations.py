@@ -6,17 +6,24 @@
 оригинальных шардов, и тот же код чтения — сайдкар писался ради этого.
 
 Проверка ссылки — программная, а не на доверии к модели. Ссылка считается
-валидной, только если выполняются все четыре условия:
+валидной, только если выполняются все пять условий:
 
-1. `doc_id` есть в срезе;
-2. диапазон лежит в границах текста;
-3. диапазон непустой;
-4. процитированный моделью текст **действительно совпадает** с текстом
+1. ссылка разобралась в тройку ``doc_id:char_start-char_end``;
+2. `doc_id` есть в срезе;
+3. диапазон лежит в границах текста;
+4. диапазон непустой;
+5. модель привела выдержку, и она **действительно совпадает** с текстом
    по этому диапазону.
 
-Четвёртое условие возможно потому, что нарезка гарантирует тождество
+Пятое условие возможно потому, что нарезка гарантирует тождество
 ``text[char_start:char_end] == chunk.text`` — оно проверено на всех
 64 031 чанке среза без единого исключения.
+
+Первое и пятое условия добавлены после того, как прогон показал два способа
+пройти проверку, ничего не подтвердив: ссылка вида ``[[103271]]`` (без
+диапазона) не попадала в подсчёт вовсе, а ссылка без записи в ``quotes``
+засчитывалась дословной, потому что сверять было нечего. Оба случая теперь
+считаются провалом и стоят в знаменателе.
 """
 
 from __future__ import annotations
@@ -28,10 +35,23 @@ from pathlib import Path
 
 from mlaw.oix import OixIndex, read_line
 
-__all__ = ["Citation", "CitationResolver", "parse_citations", "CITATION_RE"]
+__all__ = [
+    "Citation",
+    "CitationResolver",
+    "parse_citations",
+    "parse_malformed",
+    "CITATION_RE",
+    "BRACKET_RE",
+]
 
 # Ссылка в тексте ответа: [[123456:1000-2500]]
 CITATION_RE = re.compile(r"\[\[(\d+):(\d+)-(\d+)\]\]")
+# Любая пара двойных скобок, включая испорченные. Нужна, чтобы отличить
+# «ссылки нет» от «ссылка есть, но её формат сломан»: без этого ссылка
+# вида [[103271]] (только doc_id, без диапазона) не резолвится и не
+# проваливается — она просто не попадает в подсчёт, и ответ проходит
+# проверку с пустым списком ошибок.
+BRACKET_RE = re.compile(r"\[\[([^\[\]]*)\]\]")
 
 
 @dataclass(slots=True)
@@ -61,11 +81,26 @@ class CitationCheck:
 
 
 def parse_citations(text: str) -> list[Citation]:
-    """Достаёт все ссылки из ответа модели."""
+    """Достаёт все правильно оформленные ссылки из ответа модели."""
     return [
         Citation(int(doc_id), int(start), int(end))
         for doc_id, start, end in CITATION_RE.findall(text)
     ]
+
+
+def parse_malformed(text: str) -> list[str]:
+    """Содержимое скобок, не разобравшееся в `doc_id:start-end`.
+
+    Испорченная ссылка — это не «ссылки нет». Модель на что-то сослалась,
+    но проверить это «что-то» нельзя, и засчитывать такой ответ как
+    подкреплённый нельзя тем более. Возвращается сырое содержимое скобок
+    в порядке появления, без повторов.
+    """
+    seen: dict[str, None] = {}
+    for raw in BRACKET_RE.findall(text):
+        if not CITATION_RE.fullmatch(f"[[{raw}]]"):
+            seen.setdefault(raw.strip(), None)
+    return list(seen)
 
 
 class CitationResolver:
@@ -140,9 +175,15 @@ class CitationResolver:
         Возвращает и сводку, и разбор по каждой ссылке: доля валидных ссылок —
         отчётное число, а причины отказов нужны, чтобы понимать, что именно
         ломается.
+
+        Знаменатель — **все** ссылки ответа, включая испорченные по формату.
+        Считать долю только от разобравшихся значило бы вычитать собственные
+        промахи из знаменателя: ответ с единственной ссылкой `[[103271]]`
+        показывал бы «ошибок нет» вместо «ни одно утверждение не подкреплено».
         """
         citations = parse_citations(answer)
         unique = list({c.key: c for c in citations}.values())
+        malformed = parse_malformed(answer)
 
         # Два разных свойства, и смешивать их в одно число нельзя.
         # «Резолвится» — ссылка указывает на существующий диапазон реального
@@ -151,27 +192,71 @@ class CitationResolver:
         # это свойство добросовестности цитирования. Первое может быть
         # стопроцентным при провальном втором, и наоборот.
         resolvable = [self.check(c, None) for c in unique]
-        verbatim = [self.check(c, (quotes or {}).get(c.key)) for c in unique]
+
+        # Ключи выдержек приводятся к общей форме: модель ключует их так,
+        # как видит заголовок фрагмента, то есть в одинарных скобках.
+        by_key = {_normalise_key(k): v for k, v in (quotes or {}).items()}
+
+        verbatim: list[CitationCheck] = []
+        for citation in unique:
+            quoted = by_key.get(_normalise_key(citation.key))
+            if quoted is None:
+                # Ссылка без выдержки — это не «проверять нечего», а провал:
+                # правило промпта требует выдержку для КАЖДОЙ ссылки, и без
+                # неё дословность не подтверждена ничем.
+                verbatim.append(
+                    CitationCheck(citation, False, "модель не привела выдержку")
+                )
+                continue
+            verbatim.append(self.check(citation, quoted))
 
         ok_resolve = sum(1 for c in resolvable if c.ok)
         ok_quote = sum(1 for c in verbatim if c.ok)
+        # Испорченные ссылки не резолвятся и не дословны по определению,
+        # но в знаменателе стоят наравне с остальными.
+        total = len(unique) + len(malformed)
+
+        failures = [
+            {"citation": c.citation.key, "reason": c.reason}
+            for c in verbatim
+            if not c.ok
+        ]
+        failures += [
+            {"citation": raw, "reason": "ссылка не разобралась в doc_id:start-end"}
+            for raw in malformed
+        ]
+
         return {
             "citations": len(citations),
             "unique_citations": len(unique),
+            "malformed_citations": len(malformed),
+            "references_total": total,
             "resolvable": ok_resolve,
-            "resolvable_share": round(ok_resolve / len(unique), 4) if unique else None,
+            "resolvable_share": round(ok_resolve / total, 4) if total else None,
             "quote_verbatim": ok_quote,
-            "quote_verbatim_share": round(ok_quote / len(unique), 4) if unique else None,
+            "quote_verbatim_share": round(ok_quote / total, 4) if total else None,
             "valid": ok_quote,
-            "valid_share": round(ok_quote / len(unique), 4) if unique else None,
-            "failures": [
-                {"citation": c.citation.key, "reason": c.reason}
-                for c in verbatim
-                if not c.ok
-            ],
+            "valid_share": round(ok_quote / total, 4) if total else None,
+            "failures": failures,
         }
 
 
 def _normalise(text: str) -> str:
     """Схлопывает пробелы: перенос строки в цитате не должен ломать сверку."""
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _normalise_key(key: str) -> str:
+    """Ключ выдержки без обрамляющих скобок и пробелов.
+
+    Фрагменты показываются модели заголовком ``[13880:2701-4455]``, а ссылка
+    ставится как ``[[13880:2701-4455]]`` — и модель, вполне разумно, ключует
+    выдержки той формой, которую видит в заголовке. Скобки здесь разделитель,
+    а не часть идентификатора, поэтому сверять надо очищенные ключи.
+
+    Это не послабление проверки: дословность по-прежнему требует, чтобы текст
+    выдержки буквально нашёлся в диапазоне. Без нормализации провалом
+    засчитывалось бы расхождение форматов ключа, то есть аккуратность нашего
+    сопоставления, а не добросовестность модели.
+    """
+    return key.strip().strip("[]").strip()

@@ -22,7 +22,7 @@ from pathlib import Path
 
 from mlaw.citations import CitationResolver
 
-__all__ = ["AnswerRequest", "Answer", "answer_query", "SYSTEM"]
+__all__ = ["Answer", "answer_query", "reverify", "summarise", "SYSTEM"]
 
 SYSTEM = (
     "Ты — помощник юриста по правовым актам города Москвы. "
@@ -177,6 +177,81 @@ def build_fragments(hits, texts: dict[str, str], breadcrumbs: dict[str, str]) ->
     ]
 
 
+def summarise(rows: list[dict], llm_tokens: list[int] | None = None) -> dict:
+    """Сводка по строкам прогона. Вынесена, чтобы её мог пересчитать `--reverify`."""
+    errors = [r for r in rows if r.get("error")]
+    answered = [r for r in rows if not r["refused"] and not r.get("error")]
+    # Знаменатель — все ссылки, включая испорченные по формату: иначе
+    # неразобравшаяся ссылка тихо выпадает из статистики и улучшает её.
+    total_citations = sum(r["verification"].get("references_total", 0) for r in answered)
+    resolvable = sum(r["verification"].get("resolvable", 0) for r in answered)
+    valid_citations = sum(r["verification"].get("quote_verbatim", 0) for r in answered)
+    malformed = sum(r["verification"].get("malformed_citations", 0) for r in answered)
+    no_citations = sum(
+        1 for r in answered if r["verification"].get("references_total", 0) == 0
+    )
+    control = next((r for r in rows if r["query_id"] == "control-refusal"), None)
+
+    return {
+        "queries": len(rows),
+        "answered": len(answered),
+        "refused": sum(1 for r in rows if r["refused"]),
+        "errors": len(errors),
+        "citations_unique": total_citations,
+        "citations_malformed": malformed,
+        "citations_resolvable": resolvable,
+        "citations_resolvable_share": round(resolvable / total_citations, 4)
+        if total_citations else None,
+        "citations_verbatim": valid_citations,
+        "citations_verbatim_share": round(valid_citations / total_citations, 4)
+        if total_citations else None,
+        "answers_without_citations": no_citations,
+        "answers_with_all_citations_valid": sum(
+            1 for r in answered
+            if r["verification"].get("valid_share") == 1.0
+        ),
+        "control_refusal_worked": bool(control and control["refused"]),
+        "llm_tokens": llm_tokens if llm_tokens is not None else [0, 0],
+        "rows": rows,
+    }
+
+
+def print_summary(summary: dict) -> None:
+    print(f"\n{'=' * 66}")
+    print(f"  Ответов {summary['answered']}, отказов {summary['refused']}, "
+          f"сбоев разбора {summary['errors']}")
+    print(f"  Уникальных ссылок {summary['citations_unique']} "
+          f"(из них испорчено {summary['citations_malformed']}): "
+          f"резолвятся {summary['citations_resolvable']} "
+          f"({summary['citations_resolvable_share']}), "
+          f"дословны {summary['citations_verbatim']} "
+          f"({summary['citations_verbatim_share']})")
+    print(f"  Ответов без единой ссылки: {summary['answers_without_citations']}")
+    print(f"  Ответов, где ВСЕ ссылки валидны: "
+          f"{summary['answers_with_all_citations_valid']}/{summary['answered']}")
+    print(f"  Контроль отказа сработал: {summary['control_refusal_worked']}")
+    print(f"{'=' * 66}")
+
+
+def reverify(path: Path, resolver: CitationResolver) -> dict:
+    """Пересчитывает проверку цитат по сохранённому прогону, без обращения к модели.
+
+    Возможно только потому, что `quotes` кладутся в артефакт: имея текст
+    ответа и приведённые моделью выдержки, проверку можно прогнать заново
+    хоть ужесточённую, хоть исправленную — и увидеть, что изменилось именно
+    от правки проверки, а не от того, что модель на этот раз ответила иначе.
+    Отделяет эффект правки от недетерминизма генерации, который на этой
+    стадии сопоставим с самим эффектом (см. REPORT §6).
+    """
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    rows = stored["rows"]
+    for row in rows:
+        if row["refused"] or row.get("error"):
+            continue
+        row["verification"] = resolver.verify_answer(row["answer"], row.get("quotes") or {})
+    return summarise(rows, stored.get("llm_tokens"))
+
+
 def load_breadcrumbs(path: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     with open(path, encoding="utf-8") as fh:
@@ -201,7 +276,21 @@ def main() -> None:
     parser.add_argument("--llm", default="deepseek-v4-pro")
     parser.add_argument("--no-rerank", action="store_true")
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument(
+        "--reverify", type=Path, default=None,
+        help="пересчитать проверку цитат по сохранённому прогону, без вызовов модели",
+    )
     args = parser.parse_args()
+
+    if args.reverify is not None:
+        with CitationResolver(Path("data/slice.jsonl"), Path("data/slice.oix")) as resolver:
+            summary = reverify(args.reverify, resolver)
+        print(f"Пересчёт проверки по {args.reverify} (модель не вызывалась)")
+        print_summary(summary)
+        out = args.out or args.reverify
+        out.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"Отчёт: {out}")
+        return
 
     queries = load_basket(Path(f"queries/{args.split}.jsonl"))[: args.limit]
 
@@ -250,6 +339,11 @@ def main() -> None:
                     "error": answer.error,
                     "reason": answer.reason,
                     "answer": answer.text,
+                    # Выдержки кладутся в артефакт намеренно: без них проверку
+                    # дословности нельзя перепроверить по отчёту, а «90 %
+                    # дословных» превращается в число, которое надо принять
+                    # на веру — ровно то, чего эта проверка избегает.
+                    "quotes": answer.quotes,
                     "verification": answer.verification,
                     "gold_act_id": query["gold"]["act_id"],
                     "retrieved_acts": [h.act_id for h in found.hits],
@@ -265,54 +359,15 @@ def main() -> None:
             v = answer.verification
             # Считаем по УНИКАЛЬНЫМ ссылкам: одна и та же ссылка, повторённая
             # трижды в тексте ответа, — это одна проверка, а не три.
+            broken = v.get("malformed_citations", 0)
             print(f"  [{mark:>18}] {query['query_id']:<22} "
-                  f"ссылок {v.get('unique_citations', 0)}, "
+                  f"ссылок {v.get('references_total', 0)}, "
                   f"резолвятся {v.get('resolvable', 0)}, "
-                  f"дословны {v.get('quote_verbatim', 0)}")
+                  f"дословны {v.get('quote_verbatim', 0)}"
+                  + (f", ИСПОРЧЕНО {broken}" if broken else ""))
 
-    errors = [r for r in rows if r.get("error")]
-    answered = [r for r in rows if not r["refused"] and not r.get("error")]
-    total_citations = sum(r["verification"].get("unique_citations", 0) for r in answered)
-    resolvable = sum(r["verification"].get("resolvable", 0) for r in answered)
-    valid_citations = sum(r["verification"].get("quote_verbatim", 0) for r in answered)
-    no_citations = sum(
-        1 for r in answered if r["verification"].get("unique_citations", 0) == 0
-    )
-    control = next((r for r in rows if r["query_id"] == "control-refusal"), None)
-
-    summary = {
-        "queries": len(rows),
-        "answered": len(answered),
-        "refused": sum(1 for r in rows if r["refused"]),
-        "errors": len(errors),
-        "citations_unique": total_citations,
-        "citations_resolvable": resolvable,
-        "citations_resolvable_share": round(resolvable / total_citations, 4)
-        if total_citations else None,
-        "citations_verbatim": valid_citations,
-        "citations_verbatim_share": round(valid_citations / total_citations, 4)
-        if total_citations else None,
-        "answers_without_citations": no_citations,
-        "answers_with_all_citations_valid": sum(
-            1 for r in answered
-            if r["verification"].get("valid_share") == 1.0
-        ),
-        "control_refusal_worked": bool(control and control["refused"]),
-        "llm_tokens": [llm.prompt_tokens, llm.completion_tokens],
-        "rows": rows,
-    }
-
-    print(f"\n{'=' * 66}")
-    print(f"  Ответов {summary['answered']}, отказов {summary['refused']}, "
-          f"сбоев разбора {summary['errors']}")
-    print(f"  Уникальных ссылок {total_citations}: "
-          f"резолвятся {resolvable} ({summary['citations_resolvable_share']}), "
-          f"дословны {valid_citations} ({summary['citations_verbatim_share']})")
-    print(f"  Ответов без единой ссылки: {no_citations}")
-    print(f"  Ответов, где ВСЕ ссылки валидны: "
-          f"{summary['answers_with_all_citations_valid']}/{len(answered)}")
-    print(f"  Контроль отказа сработал: {summary['control_refusal_worked']}")
-    print(f"{'=' * 66}")
+    summary = summarise(rows, [llm.prompt_tokens, llm.completion_tokens])
+    print_summary(summary)
 
     out = args.out or Path(f"reports/answers_{args.split}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
