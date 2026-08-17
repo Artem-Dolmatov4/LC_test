@@ -101,3 +101,30 @@ def test_shuffled_gold_collapses_a_perfect_run():
     ]
     assert metrics_for(results, golds)["act"]["recall@1"] == 1.0
     assert metrics_for(results, shuffled_gold(queries, seed=1))["act"]["recall@10"] == 0.0
+
+
+def test_shuffled_gold_avoids_same_act_even_with_duplicates():
+    """Регрессия: тип `temporal` даёт по два запроса на один акт.
+
+    Старая реализация проверяла совпадение только один раз и сдвигала
+    источник на +1 без повторной проверки: если сосед по сдвигу тоже
+    оказывался тем же актом (что при нескольких запросах на акт вероятно),
+    контролю подсовывался настоящий эталон под видом подменённого — control
+    молчаливо переставал быть контролем для этой записи. Нашлось на реальной
+    корзине (`temp-41029-1` в test-сплите получил свой же act_id).
+    """
+    queries = []
+    for act_id in range(1, 6):
+        for position in range(3):  # три запроса на один акт — хуже, чем temporal
+            queries.append({
+                "query_id": f"a{act_id}-{position}",
+                "type": "temporal",
+                "gold": {"act_id": act_id, "doc_id": act_id * 10 + position, "chunk_ids": []},
+            })
+
+    for seed in range(20):  # много зёрен: дефект был вероятностным, не всегда
+        shuffled = shuffled_gold(queries, seed=seed)
+        for q in queries:
+            assert shuffled[q["query_id"]]["act_id"] != q["gold"]["act_id"], (
+                f"seed={seed}: {q['query_id']} получил свой же act_id"
+            )

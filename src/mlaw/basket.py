@@ -218,6 +218,143 @@ def build_temporal(
 
 
 # --------------------------------------------------------------------------- #
+# Тип 2b: темпоральные запросы без номера акта
+# --------------------------------------------------------------------------- #
+
+SEMANTIC_TEMPORAL_SYSTEM = (
+    "Ты составляешь тестовую корзину для поиска по правовым актам города Москвы. "
+    "Отвечай строго в формате JSON, без пояснений."
+)
+
+SEMANTIC_TEMPORAL_PROMPT = """Вот фрагмент правового акта города Москвы — одна из его редакций.
+
+Сформулируй ОДИН вопрос о предмете этого фрагмента: что регулируется, кому
+и на каких условиях положено, каков порядок. Спроси так, как спросил бы
+человек, который не знает и не называет номер акта, а спрашивает по существу.
+
+Требования к вопросу:
+- НЕ упоминай номер акта, реквизиты вида "постановление N ...", дату издания;
+- НЕ переписывай формулировки фрагмента дословно, перефразируй;
+- если фрагмент не даёт материала для содержательного вопроса (оглавление,
+  таблица без контекста, обрывок), поставь answerable=false.
+
+Фрагмент:
+{text}
+
+Верни JSON: {{"question": "...", "answerable": true|false}}"""
+
+
+def build_temporal_semantic(
+    acts: dict[int, list[dict]],
+    chunks_path: Path,
+    count: int,
+    seed: int,
+    *,
+    model: str,
+) -> tuple[list[Query], dict]:
+    """Темпоральные запросы БЕЗ номера акта в тексте.
+
+    `build_temporal` меряет способность выбрать правильную редакцию, но
+    запрос там называет акт по номеру — а с названным актом темпоральный
+    фильтр не может ошибиться редакцией: он оставляет ровно одну, чей
+    интервал накрывает `as_of` (непересекаемость интервалов доказана
+    инвентаризацией). «Нашёлся акт» и «нашлась нужная редакция» становятся
+    одним и тем же событием ещё до ранжирования — это измеренное свойство
+    пайплайна (см. REPORT §4), но оно же делает `temporal` слепым к одной
+    вещи: находит ли система акт по смыслу, если по номеру его не назвать.
+
+    Здесь акт называется по содержанию конкретной редакции, а не по
+    реквизитам: систему нужно сначала найти по смыслу вопроса, а не по
+    номеру, и только затем фильтр выберет редакцию. Цена та же, что
+    у `synthetic`: вопрос сочинён по тексту самой редакции, значит
+    лексически смещён в её пользу — обе редакции акта почти наверняка
+    используют разные формулировки, так что смещение слабее, чем
+    у `synthetic`, но оно есть, и это идёт в раздел ограничений, а не
+    замалчивается.
+    """
+    from mlaw.llm import DeepSeek
+
+    # Тот же отбор актов, что у build_temporal: минимум две датированные
+    # редакции, иначе выбирать не из чего.
+    usable = []
+    for act_id, editions in acts.items():
+        if len(editions) < 2:
+            continue
+        dated = [e for e in editions if e["begin"] and _midpoint(e["begin"], e["end"])]
+        if len(dated) >= 2:
+            usable.append((act_id, dated))
+
+    rng = random.Random(seed)
+    rng.shuffle(usable)
+
+    # doc_id -> первый встреченный чанк редакции с достаточным содержанием.
+    # Читаем chunks.jsonl один раз, а не по одному doc_id — так же, как
+    # build_synthetic читает пул целиком.
+    wanted_docs: set[int] = set()
+    for act_id, editions in usable:
+        wanted_docs.add(editions[0]["doc_id"])
+        wanted_docs.add(editions[-1]["doc_id"])
+    text_by_doc: dict[int, str] = {}
+    with open(chunks_path, encoding="utf-8") as fh:
+        for line in fh:
+            row = json.loads(line)
+            doc_id = row["doc_id"]
+            if doc_id in wanted_docs and doc_id not in text_by_doc and len(row["text"]) >= 400:
+                text_by_doc[doc_id] = row["text"]
+
+    llm = DeepSeek(model=model)
+    queries: list[Query] = []
+    rejected = 0
+    started = time.time()
+
+    for act_id, editions in usable:
+        if len(queries) >= count:
+            break
+        chosen = [editions[0], editions[-1]]
+        pair = [(edition, text_by_doc.get(edition["doc_id"])) for edition in chosen]
+        if any(text is None for _, text in pair):
+            continue  # ни одна из редакций не пошла в индекс без чанка
+
+        for position, (edition, text) in enumerate(pair):
+            if len(queries) >= count:
+                break
+            as_of = _midpoint(edition["begin"], edition["end"])
+            try:
+                result = llm.complete(
+                    SEMANTIC_TEMPORAL_SYSTEM,
+                    SEMANTIC_TEMPORAL_PROMPT.format(text=text[:3000]),
+                    json_mode=True, max_tokens=3000,
+                )
+                parsed = result.json()
+            except Exception:
+                rejected += 1
+                continue
+            if not parsed.get("answerable") or not parsed.get("question"):
+                rejected += 1
+                continue
+            queries.append(
+                Query(
+                    query_id=f"tsem-{act_id}-{position}",
+                    type="temporal_semantic",
+                    query=f"{parsed['question'].strip()} (по состоянию на {as_of})",
+                    gold=Gold(act_id=act_id, doc_id=edition["doc_id"]),
+                    as_of=as_of,
+                    note=f"{edition['begin']}..{edition['end'] or edition['end_sentinel']}",
+                )
+            )
+
+    stats = {
+        "requested": count,
+        "produced": len(queries),
+        "rejected_as_unanswerable": rejected,
+        "prompt_tokens": llm.prompt_tokens,
+        "completion_tokens": llm.completion_tokens,
+        "seconds": round(time.time() - started, 1),
+    }
+    return queries[:count], stats
+
+
+# --------------------------------------------------------------------------- #
 # Тип 3: синтетика по фрагменту
 # --------------------------------------------------------------------------- #
 
@@ -376,6 +513,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("queries"))
     parser.add_argument("--metadata", type=int, default=30)
     parser.add_argument("--temporal-acts", type=int, default=20)
+    parser.add_argument("--temporal-semantic", type=int, default=8)
     parser.add_argument("--synthetic", type=int, default=40)
     parser.add_argument("--model", default="deepseek-v4-pro")
     parser.add_argument("--concurrency", type=int, default=8)
@@ -392,6 +530,27 @@ def main() -> None:
 
     temporal = build_temporal(acts, args.temporal_acts, args.seed)
     print(f"  темпоральные: {len(temporal)} ({len(temporal) // 2} актов x 2 даты)")
+
+    # Кэшируется тем же приёмом, что синтетика: LLM-вызовы недёшевы,
+    # пересборка корзины ради добавленных ручных запросов не должна
+    # заново дёргать модель.
+    temporal_semantic_path = args.out / "temporal_semantic.jsonl"
+    if temporal_semantic_path.exists() and not args.regenerate:
+        temporal_semantic = [
+            Query(query_id=r["query_id"], type="temporal_semantic", query=r["query"],
+                  gold=Gold(**r["gold"]), as_of=r.get("as_of"), note=r.get("note", ""))
+            for r in (json.loads(l) for l in open(temporal_semantic_path, encoding="utf-8"))
+        ]
+        temporal_semantic_stats = {"reused_from_cache": len(temporal_semantic)}
+        print(f"  темпоральные (без номера): {len(temporal_semantic)} (из кэша)")
+    else:
+        temporal_semantic, temporal_semantic_stats = build_temporal_semantic(
+            acts, args.chunks, args.temporal_semantic, args.seed, model=args.model,
+        )
+        write(temporal_semantic_path, temporal_semantic)
+        print(f"  темпоральные (без номера): {len(temporal_semantic)} "
+              f"(отбраковано {temporal_semantic_stats['rejected_as_unanswerable']}, "
+              f"{temporal_semantic_stats['seconds']} с)")
 
     # Синтетика кэшируется: пересборка корзины из-за добавленных ручных
     # запросов не должна заново дёргать модель и жечь токены.
@@ -428,7 +587,13 @@ def main() -> None:
                 )
     print(f"  ручные: {len(manual)}")
 
-    everything = metadata + temporal + synthetic + manual
+    # temporal_semantic — новый тип, добавлен ПОСЛЕДНИМ в списке намеренно:
+    # split_dev_test группирует запросы по типу в порядке первого появления
+    # и расходует общий random.Random последовательно по группам. Добавление
+    # нового типа в конец не меняет число вызовов rng для существующих групп,
+    # значит dev/test-разбиение metadata/temporal/synthetic/manual остаётся
+    # побайтово тем же, что было заморожено для чисел в REPORT.md.
+    everything = metadata + temporal + synthetic + manual + temporal_semantic
     dev, test = split_dev_test(everything, args.seed)
 
     write(args.out / "dev.jsonl", dev)
@@ -447,6 +612,7 @@ def main() -> None:
                 "test": len(test),
                 "by_type": dict(Counter(q.type for q in everything)),
                 "synthetic_stats": stats,
+                "temporal_semantic_stats": temporal_semantic_stats,
                 "seed": args.seed,
             },
             ensure_ascii=False, indent=2,

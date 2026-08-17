@@ -352,8 +352,15 @@ def shuffled_gold(queries: list[dict], seed: int) -> dict[str, dict]:
     out: dict[str, dict] = {}
     for position, query in enumerate(queries):
         source = order[position]
-        if acts[source] == query["gold"]["act_id"] and len(queries) > 1:
+        # Один сдвиг на +1 не гарантирует несовпадение: типы temporal
+        # и temporal_semantic дают по несколько запросов на один акт,
+        # и после единственного шага источник может снова оказаться
+        # тем же актом. Сдвигаем, пока не найдём чужой — а не проверяем
+        # один раз и считаем дело сделанным.
+        seen = 0
+        while acts[source] == query["gold"]["act_id"] and seen < len(queries):
             source = (source + 1) % len(queries)
+            seen += 1
         out[query["query_id"]] = {
             "act_id": acts[source],
             "doc_id": docs[source],
