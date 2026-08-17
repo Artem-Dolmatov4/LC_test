@@ -9,6 +9,13 @@ QDRANT  ?= http://localhost:6333
 
 export PYTHONPATH := src
 
+# .env — ключи API. Не обязателен для setup/test/inventory/slice/chunk/lexical,
+# нужен для index/basket/eval/ablation/answers. Отсутствие файла не ошибка —
+# include молча пропускает то, чего нет; шаги, которым нужен ключ, упадут
+# сами с понятным сообщением из mlaw.embed / mlaw.llm.
+-include .env
+export VOYAGE_API_KEY DEEPSEEK_API_KEY DASHSCOPE_API_KEY
+
 .DEFAULT_GOAL := help
 .PHONY: help setup test test-slow qdrant qdrant-stop gate inventory slice chunk \
         lexical index basket eval ablation answers all clean
@@ -32,7 +39,7 @@ help:
 	@echo "  answers    шаг 6   — ответы с проверяемыми цитатами"
 	@echo "  all        весь пайплайн с нуля"
 	@echo ""
-	@echo "Нужны ключи в .env: VOYAGE_API_KEY, DEEPSEEK_API_KEY"
+	@echo "Нужны ключи в .env (см. .env.example): VOYAGE_API_KEY, DEEPSEEK_API_KEY"
 
 $(PY):
 	$(PYTHON) -m venv $(VENV)

@@ -15,6 +15,8 @@ dependencies = []
 zstd = ["zstandard>=0.22"]
 
 # Шаги 4-6: индекс, лексическая нога, клиенты моделей.
+# sentence-transformers тянет torch — тяжело, но реранкер шага 6 без него
+# не поднимается, а без реранка конвейер L2 не тот, что описан в отчёте.
 pipeline = [
     "qdrant-client>=1.9",
     "bm25s>=0.2",
@@ -23,6 +25,7 @@ pipeline = [
     "voyageai>=0.3",
     "numpy>=1.26",
     "pyyaml>=6.0",
+    "sentence-transformers>=5.0",
 ]
 
 dev = ["pytest>=8.0"]
