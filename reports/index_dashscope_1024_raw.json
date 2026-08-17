@@ -1,0 +1,14 @@
+{
+  "embedding": {
+    "chunks_embedded": 700,
+    "tokens": 648150,
+    "seconds": 102.8,
+    "chunks_per_sec": 6.809
+  },
+  "qdrant": {
+    "collection": "mlaw_dashscope_1024_raw",
+    "points": 900,
+    "skipped_not_in_slice": 0,
+    "count_reported_by_qdrant": 900
+  }
+}

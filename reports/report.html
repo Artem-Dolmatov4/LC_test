@@ -1,0 +1,987 @@
+<title>Поиск по актам Москвы</title>
+<style>
+  :root {
+    --ground: #FCFCFB;
+    --surface: #F2F2EF;
+    --surface-2: #EAEAE6;
+    --ink: #16181A;
+    --ink-2: #5C6167;
+    --ink-3: #8A8F93;
+    --rule: #E3E3DF;
+    --rule-2: #CFCFC9;
+    --s1: #0E8C7A;
+    --s2: #B05423;
+    --s1-soft: #E2F0ED;
+    --s2-soft: #F5E8DF;
+
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131412;
+      --surface: #1C1D1B;
+      --surface-2: #232421;
+      --ink: #EDEDE8;
+      --ink-2: #9A9D99;
+      --ink-3: #74776F;
+      --rule: #2B2C29;
+      --rule-2: #3A3B37;
+      --s1: #2CA894;
+      --s2: #C87636;
+      --s1-soft: #14322D;
+      --s2-soft: #33231733;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #131412;
+    --surface: #1C1D1B;
+    --surface-2: #232421;
+    --ink: #EDEDE8;
+    --ink-2: #9A9D99;
+    --ink-3: #74776F;
+    --rule: #2B2C29;
+    --rule-2: #3A3B37;
+    --s1: #2CA894;
+    --s2: #C87636;
+    --s1-soft: #14322D;
+    --s2-soft: #332317;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap {
+    max-width: 54rem;
+    margin: 0 auto;
+    padding: 0 1.5rem 7rem;
+  }
+
+  .prose { max-width: 38rem; }
+
+  /* ---------- hero ---------- */
+
+  .hero { padding: 5.5rem 0 0; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 1.5rem;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 6vw, 3.75rem);
+    line-height: 1.04;
+    letter-spacing: -0.032em;
+    font-weight: 600;
+    margin: 0 0 1.5rem;
+    max-width: 16ch;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: clamp(1.1rem, 2.2vw, 1.3rem);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 40ch;
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  .keyfacts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 2rem 1.5rem;
+    margin: 4rem 0 0;
+    padding: 2rem 0 0;
+    border-top: 1px solid var(--rule);
+  }
+  .keyfacts div { min-width: 0; }
+  .keyfacts dt {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 0.5rem;
+  }
+  .keyfacts dd {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .keyfacts .sub {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--ink-2);
+    margin-top: 0.35rem;
+    line-height: 1.35;
+  }
+
+  /* ---------- sections ---------- */
+
+  section { margin: 5.5rem 0 0; }
+
+  .sechead {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+    margin-bottom: 2rem;
+  }
+  .sechead .eyebrow { margin-bottom: 0.75rem; }
+
+  h2 {
+    font-size: clamp(1.55rem, 3vw, 2.05rem);
+    line-height: 1.16;
+    letter-spacing: -0.024em;
+    font-weight: 600;
+    margin: 0;
+    max-width: 22ch;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: 1.02rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 2.75rem 0 0.75rem;
+  }
+
+  p { margin: 0 0 1.15rem; }
+  .prose > p:last-child { margin-bottom: 0; }
+
+  strong { font-weight: 600; }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  .pull {
+    font-size: 1.22rem;
+    line-height: 1.45;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+    border-left: 2px solid var(--s1);
+    padding: 0.15rem 0 0.15rem 1.35rem;
+    margin: 2.25rem 0;
+    max-width: 34rem;
+    text-wrap: pretty;
+  }
+
+  /* ---------- pipeline ---------- */
+
+  .pipe {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 2.5rem 0;
+  }
+  .pipe .step {
+    background: var(--ground);
+    padding: 1.15rem 1.1rem 1.35rem;
+    min-width: 0;
+  }
+  .pipe .n {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--s1);
+    letter-spacing: 0.06em;
+    display: block;
+    margin-bottom: 0.6rem;
+  }
+  .pipe .t {
+    font-weight: 600;
+    font-size: 0.94rem;
+    display: block;
+    margin-bottom: 0.3rem;
+    letter-spacing: -0.005em;
+  }
+  .pipe .d {
+    font-size: 0.82rem;
+    color: var(--ink-2);
+    line-height: 1.4;
+  }
+
+  /* ---------- figures ---------- */
+
+  figure {
+    margin: 3rem 0;
+    padding: 1.6rem 1.6rem 1.4rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+  }
+  figure.plain {
+    background: none;
+    border: none;
+    border-top: 1px solid var(--rule);
+    padding: 1.5rem 0 0;
+  }
+
+  .figtitle {
+    font-size: 0.98rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 0 0 0.3rem;
+  }
+  .figsub {
+    font-size: 0.83rem;
+    color: var(--ink-2);
+    margin: 0 0 1.5rem;
+    line-height: 1.45;
+    max-width: 44ch;
+  }
+
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--ink-2);
+    line-height: 1.5;
+    margin-top: 1.4rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule-2);
+    max-width: 46ch;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.4rem;
+    margin: 0 0 1.35rem;
+    padding: 0;
+    list-style: none;
+    font-size: 0.82rem;
+    color: var(--ink-2);
+  }
+  .legend li { display: flex; align-items: center; gap: 0.5rem; }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    flex: 0 0 auto;
+  }
+  .swatch.a { background: var(--s1); }
+  .swatch.b { background: var(--s2); }
+
+  /* bar chart */
+  .bars { display: flex; flex-direction: column; gap: 1.35rem; }
+  .grp { display: flex; flex-direction: column; gap: 0.4rem; }
+  .grp .glabel {
+    font-size: 0.83rem;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .track {
+    background: var(--surface-2);
+    height: 1.4rem;
+    position: relative;
+    min-width: 0;
+  }
+  figure.plain .track { background: var(--surface); }
+  .fill {
+    height: 100%;
+    border-radius: 0 3px 3px 0;
+    transition: none;
+  }
+  .fill.a { background: var(--s1); }
+  .fill.b { background: var(--s2); }
+  .val {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    white-space: nowrap;
+    min-width: 4.2rem;
+    text-align: right;
+  }
+  .rowlab {
+    font-size: 0.83rem;
+    color: var(--ink-2);
+    margin-bottom: 0.3rem;
+  }
+
+  /* two-up bars sharing a label */
+  .pair { display: flex; flex-direction: column; gap: 0.3rem; }
+
+  /* ---------- timeline motif ---------- */
+
+  .tl {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin: 0.5rem 0 0;
+  }
+  .tl .lane {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.85rem;
+  }
+  .tl .lname {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-2);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .tl .bar {
+    position: relative;
+    height: 1.5rem;
+    background: var(--surface-2);
+  }
+  figure .tl .bar { background: var(--ground); }
+  .tl .seg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--s1-soft);
+    border: 1px solid var(--s1);
+    display: flex;
+    align-items: center;
+    padding-left: 0.5rem;
+    font-size: 0.72rem;
+    color: var(--ink);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .tl .seg.active {
+    background: var(--s1);
+    border-color: var(--s1);
+    color: #fff;
+    font-weight: 600;
+  }
+  :root[data-theme="dark"] .tl .seg.active { color: #0B1F1B; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .tl .seg.active { color: #0B1F1B; }
+  }
+  .tl .marker {
+    position: absolute;
+    top: -0.35rem;
+    bottom: -0.35rem;
+    width: 2px;
+    background: var(--s2);
+    z-index: 2;
+  }
+  .tl .axis {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 0.85rem;
+    margin-top: 0.15rem;
+  }
+  .tl .ticks {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-3);
+  }
+
+  /* ---------- stat tiles ---------- */
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 2.5rem 0;
+  }
+  .tile {
+    background: var(--ground);
+    padding: 1.3rem 1.15rem;
+    min-width: 0;
+  }
+  .tile .tv {
+    font-size: 1.85rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.05;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .tile .tv.pos { color: var(--s1); }
+  .tile .tl2 {
+    font-size: 0.84rem;
+    color: var(--ink-2);
+    line-height: 1.4;
+  }
+
+  /* ---------- table ---------- */
+
+  .tablewrap { overflow-x: auto; margin: 2rem 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    min-width: 30rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.65rem 1rem 0.65rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 400;
+    border-bottom: 1px solid var(--rule-2);
+    white-space: nowrap;
+  }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-family: var(--mono); font-size: 0.84rem; }
+  tbody tr:last-child td { border-bottom: none; }
+  .good { color: var(--s1); font-weight: 600; }
+
+  /* ---------- limits list ---------- */
+
+  .limits { list-style: none; margin: 2rem 0 0; padding: 0; }
+  .limits li {
+    border-top: 1px solid var(--rule);
+    padding: 1.1rem 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.3rem;
+  }
+  .limits .lt { font-weight: 600; font-size: 0.95rem; }
+  .limits .ld { font-size: 0.9rem; color: var(--ink-2); line-height: 1.5; max-width: 46ch; }
+
+  footer {
+    margin-top: 5.5rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--ink-3);
+    line-height: 1.55;
+    max-width: 44rem;
+  }
+  footer code {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    color: var(--ink-2);
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .hero { padding-top: 3.5rem; }
+    .tl .lane, .tl .axis { grid-template-columns: 4.2rem minmax(0, 1fr); gap: 0.6rem; }
+    figure { padding: 1.2rem 1.1rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">Тестовое задание · RAG-пайплайн · уровень L2</p>
+    <h1>Поиск по правовым актам Москвы</h1>
+    <p class="lede">Система отвечает на вопрос по 266 657 документам и подкрепляет каждое
+      утверждение цитатой, которую можно проверить программно — вплоть до символа в исходном тексте.</p>
+
+    <dl class="keyfacts">
+      <div>
+        <dt>Корпус</dt>
+        <dd>8.8 млрд<span class="sub">знаков текста, 28 шардов</span></dd>
+      </div>
+      <div>
+        <dt>Обход банка</dt>
+        <dd>40 с<span class="sub">потоком из архива, без распаковки 17 ГБ</span></dd>
+      </div>
+      <div>
+        <dt>Нужный акт найден</dt>
+        <dd>98.8 %<span class="sub">в первой десятке результатов</span></dd>
+      </div>
+      <div>
+        <dt>Цитаты сходятся</dt>
+        <dd>93.1 %<span class="sub">дословно совпадают с текстом акта</span></dd>
+      </div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Задача</p>
+      <h2>Закон — это не один текст, а лента версий</h2>
+    </div>
+
+    <div class="prose">
+      <p>Обычный поиск по документам предполагает, что у документа есть текст. У правового
+        акта текстов много: его правят годами, и каждая правка порождает новую редакцию.
+        Постановление 1996 года может иметь семь редакций, а рекордсмен в этом корпусе —
+        <strong class="num">708</strong>.</p>
+
+      <p>Поэтому у вопроса «что говорит акт» нет ответа без второго вопроса — <strong>на какую
+        дату</strong>. Спросили про 2010 год — правильный ответ лежит в редакции, которая
+        уже давно не действует. Отдать сегодняшнюю редакцию будет вежливой, аккуратной
+        и неверной работой.</p>
+    </div>
+
+    <figure>
+      <p class="figtitle">Одна и та же статья, четыре ответа</p>
+      <p class="figsub">Редакции акта делят ось времени без разрывов. Дата запроса выбирает
+        ровно одну из них.</p>
+
+      <div class="tl">
+        <div class="lane">
+          <span class="lname">запрос</span>
+          <div class="bar" style="background:none;">
+            <div class="marker" style="left:46%;"></div>
+            <span style="position:absolute;left:calc(46% + 0.5rem);top:0.1rem;font-size:0.75rem;color:var(--s2);white-space:nowrap;">1 июня 2015</span>
+          </div>
+        </div>
+        <div class="lane">
+          <span class="lname">редакции</span>
+          <div class="bar">
+            <div class="marker" style="left:46%;"></div>
+            <div class="seg" style="left:0;width:22%;">ред. 1</div>
+            <div class="seg" style="left:22.5%;width:20%;">ред. 2</div>
+            <div class="seg active" style="left:43%;width:24%;">ред. 3</div>
+            <div class="seg" style="left:67.5%;width:32.5%;">ред. 4</div>
+          </div>
+        </div>
+        <div class="axis">
+          <span></span>
+          <div class="ticks"><span>2004</span><span>2010</span><span>2015</span><span>2020</span><span>сейчас</span></div>
+        </div>
+      </div>
+
+      <figcaption>Проверено на всём банке: <b>ни на одну дату нет акта с двумя редакциями
+        в силе одновременно</b>. Интервалы не перекрываются, значит выбор редакции однозначен.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Как устроено</p>
+      <h2>Пять шагов от архива до ответа с цитатой</h2>
+    </div>
+
+    <div class="pipe">
+      <div class="step">
+        <span class="n">01</span>
+        <span class="t">Инвентаризация</span>
+        <span class="d">Сплошной проход по банку. Что внутри и чему нельзя верить.</span>
+      </div>
+      <div class="step">
+        <span class="n">02</span>
+        <span class="t">Нарезка</span>
+        <span class="d">Текст режется на фрагменты по границам оглавления.</span>
+      </div>
+      <div class="step">
+        <span class="n">03</span>
+        <span class="t">Индекс</span>
+        <span class="d">Смысловой поиск и словесный, каждый со своими сильными сторонами.</span>
+      </div>
+      <div class="step">
+        <span class="n">04</span>
+        <span class="t">Поиск</span>
+        <span class="d">Фильтр по дате, слияние, переранжирование.</span>
+      </div>
+      <div class="step">
+        <span class="n">05</span>
+        <span class="t">Ответ</span>
+        <span class="d">Модель собирает ответ и ставит ссылки. Ссылки проверяются.</span>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>Ключевое решение принято на первом шаге и определило всё остальное: в индекс идут
+        <strong>все редакции</strong>, а не только действующие. Без исторических редакций
+        поиск на дату в прошлом бессмыслен — правильного ответа просто нет в базе.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Что нашлось в данных</p>
+      <h2>Три находки, которые ломают наивный подход</h2>
+    </div>
+
+    <div class="prose">
+      <p>Инвентаризация — не разминка. Каждое из этих наблюдений меняет архитектуру,
+        и все они получены собственным проходом по данным, а не взяты из документации.</p>
+    </div>
+
+    <h3>Действующие редакции — это большинство документов и меньшинство текста</h3>
+
+    <figure class="plain">
+      <p class="figtitle">Доля действующих редакций в корпусе</p>
+      <p class="figsub">Одно и то же подмножество, измеренное двумя способами.</p>
+      <div class="bars">
+        <div class="pair">
+          <span class="rowlab">Доля записей</span>
+          <div class="row">
+            <div class="track"><div class="fill a" style="width:77.87%;" title="77.87 % записей"></div></div>
+            <span class="val">77.9 %</span>
+          </div>
+        </div>
+        <div class="pair">
+          <span class="rowlab">Доля текстовой массы</span>
+          <div class="row">
+            <div class="track"><div class="fill a" style="width:34.41%;" title="34.41 % текста"></div></div>
+            <span class="val">34.4 %</span>
+          </div>
+        </div>
+      </div>
+      <figcaption>Старые редакции длинных актов дублируют текст десятки раз. Считать «сколько
+        работы» по числу документов — <b>ошибиться втрое</b>.</figcaption>
+    </figure>
+
+    <h3>Статус акта описывает сегодня, а не дату запроса</h3>
+
+    <div class="prose">
+      <p>У каждого акта есть поле «Действует» или «Утратил силу». Соблазнительно
+        использовать его в фильтре по дате — и это тихая ошибка. Статус вневременной:
+        он говорит, что с актом сейчас, а не что было в 2010 году.</p>
+    </div>
+
+    <figure>
+      <p class="figtitle">Сколько актов действовало на дату</p>
+      <p class="figsub">Два способа посчитать одно и то же. Разница — это акты, отменённые
+        уже после интересующей нас даты.</p>
+      <ul class="legend">
+        <li><span class="swatch a"></span>с условием по статусу</li>
+        <li><span class="swatch b"></span>только по интервалу действия</li>
+      </ul>
+      <div class="bars">
+        <div class="grp">
+          <span class="glabel">1 июня 2010</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:51.4%;" title="47 317"></div></div><span class="val">47 317</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:83.7%;" title="77 061"></div></div><span class="val">77 061</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">1 июня 2015</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:56.9%;" title="52 369"></div></div><span class="val">52 369</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:82.7%;" title="76 113"></div></div><span class="val">76 113</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">1 июня 2020</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:63.8%;" title="58 687"></div></div><span class="val">58 687</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:86.4%;" title="79 491"></div></div><span class="val">79 491</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">Сегодня</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:81.1%;" title="74 670"></div></div><span class="val">74 670</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:100%;" title="92 024"></div></div><span class="val">92 024</span></div>
+        </div>
+      </div>
+      <figcaption>На 2010 год условие по статусу выбрасывает <b>30 тысяч актов</b> — ровно те,
+        о которых исторический запрос чаще всего и задаётся. Отсюда правило: вопрос про прошлое
+        фильтруется по интервалу, вопрос про сегодня — по признаку действующей редакции.</figcaption>
+    </figure>
+
+    <h3>Пустая дата окончания означает два разных факта</h3>
+
+    <div class="prose">
+      <p>У <span class="num">70 %</span> записей дата окончания действия пуста. Но пустота
+        бывает двух сортов, и они помечены по-разному: «срок неизвестен» и «действует
+        бессрочно». Если читать их одинаково, теряются именно бессрочно действующие
+        акты — самый частый случай в правовом корпусе.</p>
+
+      <p class="pull">Документация к корпусу разошлась с замером в шести местах. Каждое
+        расхождение перепроверено собственным проходом и вынесено в отчёт — вместе
+        с объяснением, откуда взялась разница.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Нарезка</p>
+      <h2>Фрагмент режется по смыслу, а не по счётчику символов</h2>
+    </div>
+
+    <div class="prose">
+      <p>Чтобы искать, длинный документ нужно разбить на фрагменты. Простой способ —
+        резать каждые 2 000 знаков подряд. Тогда фраза рвётся посередине, и найденный
+        кусок невозможно процитировать.</p>
+
+      <p>Здесь границы берутся из оглавления самого документа: приложение не сливается
+        с приложением, пункт не разрывается. Там, где оглавления нет, фрагмент собирается
+        из целых абзацев.</p>
+    </div>
+
+    <div class="tiles">
+      <div class="tile">
+        <span class="tv">64 031</span>
+        <span class="tl2">фрагмент в индексе</span>
+      </div>
+      <div class="tile">
+        <span class="tv pos">99.99 %</span>
+        <span class="tl2">фрагментов кончаются на границе абзаца или раздела</span>
+      </div>
+      <div class="tile">
+        <span class="tv">8</span>
+        <span class="tl2">фрагментов разрезаны внутри абзаца — аварийный путь</span>
+      </div>
+      <div class="tile">
+        <span class="tv pos">100 %</span>
+        <span class="tl2">фрагментов находятся обратно в исходном тексте</span>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>Последняя цифра — фундамент всего, что будет дальше. Раз каждый фрагмент
+        точно адресуется в исходном документе, ссылку в ответе модели можно
+        проверить машинально, а не на доверии.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Качество поиска</p>
+      <h2>Что даёт каждая стадия конвейера</h2>
+    </div>
+
+    <div class="prose">
+      <p>Собрать сложный конвейер легко. Труднее показать, что каждая его часть нужна.
+        Ниже — стадии, добавленные по одной, и что происходит с качеством.</p>
+    </div>
+
+    <figure>
+      <p class="figtitle">Вклад стадий, 82 запроса</p>
+      <p class="figsub">Слева направо стадии накапливаются. Две шкалы качества: нашёлся ли
+        нужный акт и нашёлся ли нужный фрагмент внутри него.</p>
+      <ul class="legend">
+        <li><span class="swatch a"></span>точность на уровне акта</li>
+        <li><span class="swatch b"></span>точность на уровне фрагмента</li>
+      </ul>
+      <div class="bars">
+        <div class="grp">
+          <span class="glabel">Слияние двух видов поиска</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:72.7%;" title="0.727"></div></div><span class="val">0.727</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:79.2%;" title="0.792"></div></div><span class="val">0.792</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">+ потолок фрагментов на акт</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:72.8%;" title="0.728"></div></div><span class="val">0.728</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:79.2%;" title="0.792"></div></div><span class="val">0.792</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">+ переранжирование</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:93.4%;" title="0.934"></div></div><span class="val">0.934</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:79.2%;" title="0.792"></div></div><span class="val">0.792</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">+ схлопывание по акту</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:93.4%;" title="0.934"></div></div><span class="val">0.934</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:75.0%;" title="0.750"></div></div><span class="val">0.750</span></div>
+        </div>
+      </div>
+      <figcaption>Переранжирование окупает свои 12 секунд на запрос. А последняя стадия —
+        <b>размен, а не улучшение</b>: акт находится не лучше, зато нужный фрагмент теряется.
+        Видно это только потому, что качество меряется на двух уровнях сразу. Стадия
+        выключена.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Честная оценка</p>
+      <h2>Где замер льстит системе</h2>
+    </div>
+
+    <div class="prose">
+      <p>В системе два вида поиска. <strong>Словесный</strong> ищет точные совпадения —
+        номера, реквизиты. <strong>Смысловой</strong> понимает перифраз, но к номерам
+        безразличен. Разложив результат по типам вопросов, видно, что они делают разную
+        работу — и видно кое-что неприятное про саму корзину вопросов.</p>
+    </div>
+
+    <figure>
+      <p class="figtitle">Кто выигрывает на каком вопросе</p>
+      <p class="figsub">Доля вопросов, где нужный акт попал в первую десятку.</p>
+      <ul class="legend">
+        <li><span class="swatch a"></span>смысловой поиск</li>
+        <li><span class="swatch b"></span>словесный поиск</li>
+      </ul>
+      <div class="bars">
+        <div class="grp">
+          <span class="glabel">Поиск по реквизитам акта</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:44.4%;" title="0.444"></div></div><span class="val">0.444</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:100%;" title="1.000"></div></div><span class="val">1.000</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">Дата + номер акта</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:62.5%;" title="0.625"></div></div><span class="val">0.625</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:87.5%;" title="0.875"></div></div><span class="val">0.875</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">Смысловые вопросы, руками</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:90.9%;" title="0.909"></div></div><span class="val">0.909</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:100%;" title="1.000"></div></div><span class="val">1.000</span></div>
+        </div>
+        <div class="grp">
+          <span class="glabel">Дата, но без номера акта</span>
+          <div class="row"><div class="track"><div class="fill a" style="width:100%;" title="1.000"></div></div><span class="val">1.000</span></div>
+          <div class="row"><div class="track"><div class="fill b" style="width:100%;" title="1.000"></div></div><span class="val">1.000</span></div>
+        </div>
+      </div>
+      <figcaption>Словесный поиск обходит смысловой почти везде — но <b>не потому, что он лучше</b>.
+        Больше половины вопросов в корзине содержат номер акта, а это ровно то, где словесный
+        поиск непобедим. Стоит убрать номер из вопроса — и смысловой поиск сравнивается с ним.</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>Это признание, а не украшение: корзина вопросов смещена, и вывод «смысловой
+        поиск здесь не нужен» из неё делать нельзя. Последняя строка графика — тип
+        вопросов, добавленный специально чтобы это смещение показать.</p>
+    </div>
+
+    <h3>У метрики должен быть способ обвалиться</h3>
+
+    <div class="prose">
+      <p>Метрика, которая не умеет показать плохой результат, ничего не измеряет.
+        Проверка простая: подменить правильные ответы на чужие. Если число не упало —
+        считается что-то не то.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Проверка</th><th class="n">Результат</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Настоящий поиск</td><td class="n good">0.939</td></tr>
+          <tr><td>Эталон подменён на чужой</td><td class="n">0.024</td></tr>
+          <tr><td>Выдача заменена случайной</td><td class="n">0.012</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>Обе проверки обваливаются на порядок. Причём сама проверка тоже однажды
+        сломалась: подмена случайно подсовывала запросу его же правильный ответ.
+        Дефект нашёлся, когда числа перестали сходиться, и закрыт отдельным тестом.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Ответ</p>
+      <h2>Цитата, которую проверяет машина, а не человек</h2>
+    </div>
+
+    <div class="prose">
+      <p>Модель отвечает только по найденным фрагментам и обязана после каждого
+        утверждения поставить ссылку. Ссылка — это не название документа, а точный
+        адрес: документ и диапазон символов в нём.</p>
+
+      <p>Дальше проверяются <strong>два разных свойства</strong>, и смешивать их
+        в одно число нельзя. Первое: ссылка ведёт в реальный существующий кусок текста.
+        Второе: приведённая моделью выдержка <strong>буквально совпадает</strong>
+        с текстом по этому адресу. Первое может быть стопроцентным при провальном втором —
+        так и бывает, когда модель пересказывает вместо того, чтобы цитировать.</p>
+    </div>
+
+    <div class="tiles">
+      <div class="tile">
+        <span class="tv pos">96.6 %</span>
+        <span class="tl2">ссылок ведут в реальный фрагмент</span>
+      </div>
+      <div class="tile">
+        <span class="tv pos">93.1 %</span>
+        <span class="tl2">цитат дословно совпадают с текстом</span>
+      </div>
+      <div class="tile">
+        <span class="tv">0</span>
+        <span class="tl2">ответов без единой ссылки</span>
+      </div>
+      <div class="tile">
+        <span class="tv pos">да</span>
+        <span class="tl2">на вопрос вне корпуса система отказывает, а не выдумывает</span>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>Числа не круглые намеренно. Первая версия проверки показывала 100 % — потому
+        что не замечала ссылок со сломанным форматом: они не проваливались, они просто
+        не попадали в подсчёт. После починки доля упала до 96.6 %.</p>
+
+      <p class="pull">Число стало хуже, потому что проверка стала честнее. Это тот
+        случай, когда падение метрики означает, что она наконец измеряет заявленное.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Границы</p>
+      <h2>Чего этот замер не показывает</h2>
+    </div>
+
+    <div class="prose">
+      <p>Раздел написан автором работы, а не заказчиком. Всё перечисленное известно
+        и названо до того, как об этом спросят.</p>
+    </div>
+
+    <ul class="limits">
+      <li>
+        <span class="lt">Юридическая правильность ответа не измеряется вообще</span>
+        <span class="ld">Проверяется, что цитата ведёт в настоящий текст — не то, что
+          вывод из неё юридически верен. Это принципиально разные вещи.</span>
+      </li>
+      <li>
+        <span class="lt">Корзина вопросов смещена в пользу словесного поиска</span>
+        <span class="ld">Больше половины вопросов содержат номер акта. Сравнение двух
+          видов поиска на такой корзине некорректно, и это видно на графике выше.</span>
+      </li>
+      <li>
+        <span class="lt">Срез — 0.4 % корпуса</span>
+        <span class="ld">800 актов из 207 634. На маленьком срезе искать легче: меньше
+          похожих документов-конкурентов.</span>
+      </li>
+      <li>
+        <span class="lt">Стадия ответа не воспроизводится числом</span>
+        <span class="ld">Три прогона одной конфигурации дали 26–30 ссылок и 90–100 %
+          дословности. Структура устойчива, метрики цитирования — нет.</span>
+      </li>
+      <li>
+        <span class="lt">Релевантность бинарная</span>
+        <span class="ld">«Подходит / не подходит», без градаций. Для правового поиска
+          это грубо: акт может быть релевантен частично.</span>
+      </li>
+      <li>
+        <span class="lt">Модели эмбеддингов между собой не сравнивались</span>
+        <span class="ld">Вторая проверена на малой выборке, локальная замерена
+          и отвергнута по скорости — 70 часов на срез.</span>
+      </li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Все числа получены собственными замерами на этой выгрузке: сплошным проходом
+      по 28 шардам либо прогоном на замороженной тестовой выборке. Полный отчёт
+      с методикой — <code>reports/REPORT.md</code>, воспроизведение пайплайна —
+      <code>make all</code>. Оценка: 136 вопросов, из них 82 в тестовой выборке,
+      настройки подбирались на отдельной части и на тест не переносились.</p>
+  </footer>
+
+</div>

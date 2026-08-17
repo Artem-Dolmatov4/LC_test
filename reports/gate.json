@@ -1,0 +1,36 @@
+{
+  "model": "qwen3-embedding:8b",
+  "chunk_chars": 2000,
+  "chunks_measured": 10,
+  "throughput": {
+    "chunks_per_sec": 0.252,
+    "tokens_per_sec": 130.1,
+    "sec_per_chunk_median": 3.83,
+    "sec_per_chunk_min": 2.75,
+    "sec_per_chunk_max": 5.1
+  },
+  "tokenization": {
+    "tokens_per_chunk_median": 505.0,
+    "chars_per_token": 3.87
+  },
+  "mrl": {
+    "native_dim": 4096,
+    "truncated_dim": 1024,
+    "pearson_on_pairwise_cosine": 0.9989,
+    "mean_abs_shift": 0.0226,
+    "note": "усечение с перенормировкой; замер на суррогатных чанках и без эталонов релевантности — показывает сохранность геометрии, а не качество поиска"
+  },
+  "overflow": {
+    "num_ctx": 512,
+    "truncate_false": "явная ошибка: вход не поместился в num_ctx=512: {\"error\":\"the input length exceeds the context length\"}",
+    "ok": true,
+    "truncate_true_tokens": 511,
+    "truncate_true": "прошло молча — ровно то, чего нельзя допускать"
+  },
+  "projection": {
+    "1_000 чанков, часов": 1.1,
+    "10_000 чанков, часов": 11.0,
+    "50_000 чанков, часов": 55.1,
+    "100_000 чанков, часов": 110.3
+  }
+}

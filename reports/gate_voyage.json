@@ -1,0 +1,19 @@
+{
+  "model": "voyage-context-4",
+  "chunks": 6,
+  "dim": 1024,
+  "throughput": {
+    "chunks_per_sec": 6.6,
+    "seconds": 0.9
+  },
+  "usage": {
+    "tokens_this_run": 3502,
+    "note": "200M токенов на аккаунт выдаются один раз и не возобновляются"
+  },
+  "contextualization": {
+    "same_chunk_in_document_vs_alone": 0.7401,
+    "different_chunks_baseline": 0.9189,
+    "verdict": "контекст влияет"
+  },
+  "windowed_documents": 0
+}

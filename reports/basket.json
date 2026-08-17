@@ -1,0 +1,24 @@
+{
+  "total": 136,
+  "dev": 54,
+  "test": 82,
+  "by_type": {
+    "metadata": 30,
+    "temporal": 40,
+    "synthetic": 40,
+    "manual": 18,
+    "temporal_semantic": 8
+  },
+  "synthetic_stats": {
+    "reused_from_cache": 40
+  },
+  "temporal_semantic_stats": {
+    "requested": 8,
+    "produced": 8,
+    "rejected_as_unanswerable": 0,
+    "prompt_tokens": 8220,
+    "completion_tokens": 5928,
+    "seconds": 82.0
+  },
+  "seed": 20260815
+}

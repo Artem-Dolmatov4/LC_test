@@ -1,0 +1,508 @@
+{
+  "records": 266657,
+  "stubs": 58,
+  "total_chars": 8775855151,
+  "current_editions": {
+    "records": 207634,
+    "records_pct": 77.87,
+    "chars": 3019793065,
+    "chars_pct_of_mass": 34.41
+  },
+  "text_length": {
+    "all": {
+      "p10": 1055,
+      "p50": 3932,
+      "p90": 46401,
+      "p99": 549295,
+      "max": 36610631,
+      "min": 20
+    },
+    "current_only": {
+      "p10": 923,
+      "p50": 3007,
+      "p90": 27082,
+      "p99": 164700,
+      "max": 15701637,
+      "min": 20
+    }
+  },
+  "field_presence": {
+    "doc_id": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "extra": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "date": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "title": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "edition_date": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 30.57
+    },
+    "status": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "status_code": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "effective_date_begin": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 64.49
+    },
+    "text": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "n_streams": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "edition": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "id": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "db": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "text_hash": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0
+    },
+    "source": {
+      "key_present_pct": 99.98,
+      "value_not_null_pct": 99.98
+    },
+    "issuing_body": {
+      "key_present_pct": 99.98,
+      "value_not_null_pct": 99.98
+    },
+    "issuing_body_short": {
+      "key_present_pct": 99.98,
+      "value_not_null_pct": 99.98
+    },
+    "rubrics": {
+      "key_present_pct": 99.97,
+      "value_not_null_pct": 99.97
+    },
+    "rubrics_code": {
+      "key_present_pct": 99.97,
+      "value_not_null_pct": 99.97
+    },
+    "doc_type": {
+      "key_present_pct": 99.96,
+      "value_not_null_pct": 99.96
+    },
+    "effective_date_end": {
+      "key_present_pct": 99.96,
+      "value_not_null_pct": 30.0
+    },
+    "title_all": {
+      "key_present_pct": 99.86,
+      "value_not_null_pct": 99.86
+    },
+    "number": {
+      "key_present_pct": 98.97,
+      "value_not_null_pct": 98.97
+    },
+    "rubrics_all": {
+      "key_present_pct": 72.28,
+      "value_not_null_pct": 72.28
+    },
+    "rubrics_code_all": {
+      "key_present_pct": 72.28,
+      "value_not_null_pct": 72.28
+    },
+    "effective_date_end_sentinel": {
+      "key_present_pct": 69.96,
+      "value_not_null_pct": 69.96
+    },
+    "edition_date_sentinel": {
+      "key_present_pct": 69.43,
+      "value_not_null_pct": 69.43
+    },
+    "contents": {
+      "key_present_pct": 49.93,
+      "value_not_null_pct": 49.93
+    },
+    "source_all": {
+      "key_present_pct": 38.81,
+      "value_not_null_pct": 38.81
+    },
+    "doc_type_all": {
+      "key_present_pct": 36.88,
+      "value_not_null_pct": 36.88
+    },
+    "effective_date_begin_sentinel": {
+      "key_present_pct": 35.51,
+      "value_not_null_pct": 35.51
+    },
+    "amendment_log": {
+      "key_present_pct": 21.45,
+      "value_not_null_pct": 21.45
+    },
+    "amendment_log_all": {
+      "key_present_pct": 10.42,
+      "value_not_null_pct": 10.42
+    },
+    "number_all": {
+      "key_present_pct": 4.13,
+      "value_not_null_pct": 4.13
+    },
+    "date_all": {
+      "key_present_pct": 1.88,
+      "value_not_null_pct": 1.88
+    },
+    "issuing_body_all": {
+      "key_present_pct": 1.03,
+      "value_not_null_pct": 1.03
+    },
+    "is_stub": {
+      "key_present_pct": 0.02,
+      "value_not_null_pct": 0.02
+    }
+  },
+  "date_keys_key_vs_value": {
+    "date": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 100.0,
+      "gap_pp": 0.0
+    },
+    "edition_date": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 30.57,
+      "gap_pp": 69.43
+    },
+    "effective_date_begin": {
+      "key_present_pct": 100.0,
+      "value_not_null_pct": 64.49,
+      "gap_pp": 35.51
+    },
+    "effective_date_end": {
+      "key_present_pct": 99.96,
+      "value_not_null_pct": 30.0,
+      "gap_pp": 69.96
+    }
+  },
+  "extra_keys": {
+    "COMMON_DATE_MIN": 100.0,
+    "COMMON_DATE_MIN_sentinel": 100.0,
+    "LAW_FIRST_RED": 100.0,
+    "COMMON_VID_IZM": 100.0,
+    "COMMON_VID_IZM_code": 100.0,
+    "LAW_DATA_IZM": 100.0,
+    "COMMON_TYPE_INF": 100.0,
+    "COMMON_TYPE_INF_code": 100.0,
+    "COMMON_VOLUME": 100.0,
+    "COMMON_RED": 100.0,
+    "COMMON_RED_code": 100.0,
+    "LAW_LABEL": 100.0,
+    "LAW_LABEL_code": 100.0,
+    "LAW_GENDOC": 100.0,
+    "LAW_GENDOC_code": 100.0,
+    "LAW_DOC_TYPE": 100.0,
+    "LAW_DOC_TYPE_code": 100.0,
+    "LAW_DATEMV_DA": 100.0,
+    "LAW_DATEMV_DB": 100.0,
+    "LAW_LEVEL_ORGAN": 99.98,
+    "LAW_LEVEL_ORGAN_code": 99.98,
+    "LAW_DATEMV_DB_sentinel": 99.93,
+    "LAW_DATEMV_DA_sentinel": 98.7,
+    "LAW_DATA_IZM_sentinel": 97.56,
+    "COMMON_DATA_CONTROL": 42.46,
+    "COMMON_TYPE_CONTROL": 42.46,
+    "COMMON_TYPE_CONTROL_code": 42.46,
+    "LAW_DOC_TYPE_all": 21.31,
+    "LAW_DOC_TYPE_code_all": 21.31,
+    "COMMON_WEIGHT": 8.25,
+    "COMMON_VID_IZM_all": 0.29,
+    "COMMON_VID_IZM_code_all": 0.29,
+    "COMMON_STR_DBL": 0.26,
+    "COMMON_STR_DBL_all": 0.26,
+    "COMMON_RUB_SPR": 0.02,
+    "COMMON_RUB_SPR_code": 0.02,
+    "COMMON_LATENT": 0.02,
+    "COMMON_LATENT_code": 0.02
+  },
+  "multivalued_pct": {
+    "rubrics_code_all": 72.28,
+    "source_all": 38.81,
+    "doc_type_all": 36.88,
+    "number_all": 4.13
+  },
+  "status": {
+    "Действует": 169874,
+    "Утратил силу или отменен": 67332,
+    "Утратил значение": 26941,
+    "Не применяется": 2360,
+    "Изменен": 107,
+    "Не вступил в силу": 43
+  },
+  "doc_type_top": {
+    "Распоряжение": 88602,
+    "Постановление": 83939,
+    "Приказ": 45519,
+    "Письмо": 23536,
+    "Решение": 9696,
+    "Закон": 3688,
+    "Устав": 2082,
+    "Указ": 2040,
+    "Протокол": 870,
+    "Вопрос-Ответ": 720,
+    "Разъяснение / Разъяснения": 579,
+    "Соглашение": 567
+  },
+  "issuing_body_top": {
+    "Правительство Москвы": 113217,
+    "Мэр Москвы": 17435,
+    "Московская городская Дума": 12991,
+    "Департамент здравоохранения г. Москвы": 10765,
+    "Мосгорнаследие": 9694,
+    "УМНС России по г. Москве": 9296,
+    "Департамент экономической политики и развития г. Москвы": 7661,
+    "УФНС России по г. Москве": 6627,
+    "РЭК Москвы": 4695,
+    "Мосгорсуд": 4642
+  },
+  "type_inf": {
+    "Индивидуальный правовой акт": 149413,
+    "Нормативный акт": 99405,
+    "Частное письмо": 14003,
+    "Материал консультационного характера": 2156,
+    "Проект": 701,
+    "Справочная информация": 502,
+    "Судебное решение": 419,
+    "Тип не определен": 58
+  },
+  "sentinels": {
+    "effective_date_end": {
+      "null": 94582,
+      "indefinite": 91975,
+      "null": 80100
+    },
+    "effective_date_begin": {
+      "null": 171968,
+      "null": 94689
+    },
+    "edition_date": {
+      "null": 185137,
+      "null": 81520
+    }
+  },
+  "editions": {
+    "acts": 207634,
+    "multi_edition_acts": 22492,
+    "records_in_multi": 81515,
+    "acts_by_current_count": {
+      "1": 207634
+    },
+    "max_docid_is_not_current": 328,
+    "current_index_ne_n_editions_minus_1": 328,
+    "n_editions_ne_chain_length": 0,
+    "chain_length_all": {
+      "p10": 1,
+      "p50": 1,
+      "p90": 2,
+      "p99": 6,
+      "max": 708,
+      "min": 1
+    },
+    "multi_chain_median": 2,
+    "multi_chain_p90": 6,
+    "multi_chain_max": 708,
+    "split_across_shards": 20737,
+    "split_across_shards_pct": 92.2,
+    "shards_per_multi_act": {
+      "1": 1755,
+      "2": 12875,
+      "3": 3750,
+      "4": 1610,
+      "5": 808,
+      "6": 472,
+      "7": 300,
+      "8": 196,
+      "9": 137,
+      "10": 110,
+      "11": 111,
+      "12": 73,
+      "13": 54,
+      "14": 53,
+      "15": 34,
+      "16": 33,
+      "17": 19,
+      "18": 16,
+      "19": 18,
+      "20": 15,
+      "21": 14,
+      "22": 12,
+      "23": 10,
+      "24": 5,
+      "25": 4,
+      "26": 3,
+      "27": 1,
+      "28": 4
+    }
+  },
+  "duplicates_by_text_hash": 235,
+  "contents": {
+    "documents": 133131,
+    "documents_pct": 49.93,
+    "nodes": 2287787,
+    "zero_span_nodes": 21019,
+    "zero_span_pct": 0.92,
+    "multiroot_documents": 133130,
+    "multiroot_pct": 100.0,
+    "levels": {
+      "1": 465658,
+      "2": 819050,
+      "3": 486627,
+      "4": 267309,
+      "5": 136650,
+      "6": 105932,
+      "7": 4736,
+      "8": 1585,
+      "9": 240
+    },
+    "label_first_word_top": {
+      "приложение": 359725,
+      "статья": 206185,
+      "пункт": 191104,
+      "подпункт": 93087,
+      "расчетные": 63757,
+      "в": 60274,
+      "1": 57419,
+      "2": 56630,
+      "постановление": 50256,
+      "3": 48501,
+      "раздел": 48308,
+      "4": 40512,
+      "таблица": 38632,
+      "распоряжение": 36139,
+      "приказ": 34099
+    },
+    "labels_with_u0015": 0
+  },
+  "point_in_time": {
+    "2010-06-01": {
+      "D_no_status_condition": 77061,
+      "E_interval_any_edition": 77061,
+      "A_strict": 47317,
+      "A_strict_and_current": 45247,
+      "B_date_substituted": 47317,
+      "C_loose_end": 47317,
+      "status_only": 169874
+    },
+    "2015-06-01": {
+      "A_strict": 52369,
+      "A_strict_and_current": 50520,
+      "B_date_substituted": 52369,
+      "C_loose_end": 52369,
+      "D_no_status_condition": 76113,
+      "status_only": 169874,
+      "E_interval_any_edition": 76113
+    },
+    "2020-06-01": {
+      "A_strict": 58687,
+      "A_strict_and_current": 56817,
+      "B_date_substituted": 58687,
+      "C_loose_end": 58687,
+      "D_no_status_condition": 79491,
+      "status_only": 169874,
+      "E_interval_any_edition": 79491
+    },
+    "2026-08-14": {
+      "A_strict": 74670,
+      "A_strict_and_current": 74668,
+      "B_date_substituted": 74670,
+      "C_loose_end": 74670,
+      "D_no_status_condition": 92024,
+      "status_only": 169874,
+      "E_interval_any_edition": 92024
+    }
+  },
+  "point_in_time_by_act": {
+    "2010-06-01": {
+      "A": {
+        "acts_with_an_edition_in_force": 47317,
+        "editions_in_force_per_act": {
+          "1": 47317
+        },
+        "acts_with_more_than_one": 0
+      },
+      "E": {
+        "acts_with_an_edition_in_force": 77061,
+        "editions_in_force_per_act": {
+          "1": 77061
+        },
+        "acts_with_more_than_one": 0
+      }
+    },
+    "2015-06-01": {
+      "A": {
+        "acts_with_an_edition_in_force": 52369,
+        "editions_in_force_per_act": {
+          "1": 52369
+        },
+        "acts_with_more_than_one": 0
+      },
+      "E": {
+        "acts_with_an_edition_in_force": 76113,
+        "editions_in_force_per_act": {
+          "1": 76113
+        },
+        "acts_with_more_than_one": 0
+      }
+    },
+    "2020-06-01": {
+      "A": {
+        "acts_with_an_edition_in_force": 58687,
+        "editions_in_force_per_act": {
+          "1": 58687
+        },
+        "acts_with_more_than_one": 0
+      },
+      "E": {
+        "acts_with_an_edition_in_force": 79491,
+        "editions_in_force_per_act": {
+          "1": 79491
+        },
+        "acts_with_more_than_one": 0
+      }
+    },
+    "2026-08-14": {
+      "A": {
+        "acts_with_an_edition_in_force": 74670,
+        "editions_in_force_per_act": {
+          "1": 74670
+        },
+        "acts_with_more_than_one": 0
+      },
+      "E": {
+        "acts_with_an_edition_in_force": 92024,
+        "editions_in_force_per_act": {
+          "1": 92024
+        },
+        "acts_with_more_than_one": 0
+      }
+    }
+  },
+  "_meta": {
+    "archive": "MLAW_dataset.tar.zst",
+    "seconds": 40.1,
+    "records_per_sec": 6656
+  }
+}

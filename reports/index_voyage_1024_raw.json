@@ -1,0 +1,15 @@
+{
+  "embedding": {
+    "chunks_embedded": 61651,
+    "tokens": 56596697,
+    "seconds": 1990.6,
+    "chunks_per_sec": 30.971,
+    "window_chunks": 40
+  },
+  "qdrant": {
+    "collection": "mlaw_voyage_1024_raw",
+    "points": 64031,
+    "skipped_not_in_slice": 0,
+    "count_reported_by_qdrant": 64031
+  }
+}

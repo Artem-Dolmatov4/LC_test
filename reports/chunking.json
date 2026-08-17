@@ -1,0 +1,44 @@
+{
+  "config": {
+    "target_chars": 2000,
+    "max_chars": 3000,
+    "min_chars": 200,
+    "overlap_chars": 200
+  },
+  "documents": 1039,
+  "documents_with_structure": 498,
+  "chunks": 64031,
+  "chars_in": 119261440,
+  "chars_in_chunks": 119199260,
+  "coverage_pct": 99.95,
+  "chunk_chars": {
+    "p10": 1806,
+    "p50": 1944,
+    "p90": 1997,
+    "p99": 2066,
+    "max": 2999,
+    "mean": 1862
+  },
+  "chunks_per_document": {
+    "p50": 3,
+    "p90": 22,
+    "p99": 304,
+    "max": 6516
+  },
+  "boundary_kind": {
+    "paragraph": {
+      "chunks": 58258,
+      "pct": 90.98
+    },
+    "structural": {
+      "chunks": 5765,
+      "pct": 9.0
+    },
+    "mid_paragraph": {
+      "chunks": 8,
+      "pct": 0.01
+    }
+  },
+  "merged_sibling_groups": 604,
+  "seconds": 1.9
+}
