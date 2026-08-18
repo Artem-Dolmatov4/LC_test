@@ -101,6 +101,8 @@ answers: queries/all.jsonl data/bm25
 all: inventory slice chunk lexical index basket eval ablation answers
 	@echo "Пайплайн пройден. Отчёты в reports/"
 
+# reports/*.json — трекаемые артефакты сдачи, их сносить нельзя;
+# make all перезапишет их сам.
 clean:
-	rm -rf data/* reports/*.json reports/*.log .pytest_cache
+	rm -rf data/* reports/*.log .pytest_cache
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
